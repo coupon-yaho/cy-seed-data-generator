@@ -1,0 +1,142 @@
+{
+  "spec": {
+    "cipher": "AES-256-GCM",
+    "layout": "IV(12B) || ciphertext || tag(16B)",
+    "aad": null,
+    "column_type": "varbinary(256)",
+    "blind_index": "lower(hex(HMAC-SHA256(HMAC_KEY, normalized)))",
+    "normalize": {
+      "email": "trim + lowercase",
+      "phone": "digits only"
+    },
+    "key_encoding": "base64(32 bytes) in AES_KEY / HMAC_KEY env"
+  },
+  "note": "벡터는 아래 고정 테스트 키로 만든다. 운영 AES_KEY/HMAC_KEY 를 쓰지 않으므로 저장소에 커밋해도 안전하다. 규약(바이트 레이아웃)을 증명하는 것이 목적이다.",
+  "test_keys": {
+    "AES_KEY": "6QFuC9nG//rkMttxxFPGIhUpCrNolTrLMv3jh5LZm+E=",
+    "HMAC_KEY": "omrv1gVpdi/QroTOIQ+udlsEtbTzNk+Qcp9fyYhgrD4=",
+    "derivation": "sha256(b\"seed-crypto-vector-aes\") / sha256(b\"seed-crypto-vector-hmac\")"
+  },
+  "vectors": [
+    {
+      "plaintext": "홍길동",
+      "iv_hex": "60bb372806614520ba687373",
+      "stored_hex": "60bb372806614520ba687373404db4a8a8449f0891ccee3b4df72b5a9bfa45b9b9bb78ca76",
+      "hmac_hex": "3b9483f9319c5c3b175279d63686f2d27027f479dde48abb23373966a8bf0667"
+    },
+    {
+      "plaintext": "김서연",
+      "iv_hex": "9deb8253c504b392a351cb0d",
+      "stored_hex": "9deb8253c504b392a351cb0dd2b54aa709e2d1ee287c47e0e1778af22becfb9e5e0388bf92",
+      "hmac_hex": "90e353c2ebb84ca81945b4efafa6612c3d06283c54eba2713f36606c21365ae4"
+    },
+    {
+      "plaintext": "test.user@example.com",
+      "iv_hex": "aa51add9283d4f1cd307b2d2",
+      "stored_hex": "aa51add9283d4f1cd307b2d2da42928aa08a98ed1204355726e85326fad43438571d66f8aa989348d32455629ceaf887c1",
+      "hmac_hex": "6d3453f0ba68fda0bf902ec2438f6da5a36252e7d92018572a7dc6781bd9dea6"
+    },
+    {
+      "plaintext": "010-1234-5678",
+      "iv_hex": "2990dd325b0d858675e9e3c2",
+      "stored_hex": "2990dd325b0d858675e9e3c222d2dab44c03dd34f3a3a96b9f8f1c709ecc15a0b4c4bc66db6b5a31aa",
+      "hmac_hex": "ea894426046f1d9ed01b3156e717e3c21fa75f069e79ecbe98f869b1a77e4681"
+    },
+    {
+      "plaintext": "u1@seed.example.com",
+      "iv_hex": "3de39943811cbe95863d0ab5",
+      "stored_hex": "3de39943811cbe95863d0ab5c779f0c131a4ca2639efef910f1a9d0a862bceb5d3b2b167ef6e118b3c6feb9ee282b9",
+      "hmac_hex": "15040e9013a77e5e259ab5088c3870d82bac16d710a4819ad967947ea7b5ccba"
+    },
+    {
+      "plaintext": "박민준",
+      "iv_hex": "410426950605ed468b434921",
+      "stored_hex": "410426950605ed468b434921d15f5d745566a74573fda202a517c58300779462ac4e3662ea",
+      "hmac_hex": "446257de439102fcfef8ba96ee26258cb86ead83bc45c2917cdaf7bdf16ba4be"
+    },
+    {
+      "plaintext": "010-9876-5432",
+      "iv_hex": "c955a6d903b3c1a837090c55",
+      "stored_hex": "c955a6d903b3c1a837090c5503bf08d9a69ee2c9d6e625392442db285a12f47467e845cac774044cfc",
+      "hmac_hex": "5ee0fdc1385f0ede0abf22e43860d17e6764488436c57e0febc90b5780a931cb"
+    },
+    {
+      "plaintext": "이하은",
+      "iv_hex": "128c23bd455750ed30d2e2a4",
+      "stored_hex": "128c23bd455750ed30d2e2a4fb16ad65df4e145e460d60852d4f56d7201dd1d1e197ba0d09",
+      "hmac_hex": "0d315f455b079557c432d766707c7364294266f7d6295656ae70b6e09805eb90"
+    },
+    {
+      "plaintext": "홍길동-8",
+      "iv_hex": "4133f5ab2a757d8b76448921",
+      "stored_hex": "4133f5ab2a757d8b76448921b14fee835aa084662291b1b907baabcba582ed113396a472688bce",
+      "hmac_hex": "7db7da9e32387e6311344fc334e4d9a798c52c29942d6371bfa77391cbc4c9d3"
+    },
+    {
+      "plaintext": "김서연-9",
+      "iv_hex": "c4d56a3117d8538eae01d872",
+      "stored_hex": "c4d56a3117d8538eae01d8728be301604316983ed03152feefec453b68ced93a2f986987f52cf6",
+      "hmac_hex": "9e2eba443dda0d90b98fe4f47067149c0dbedbd919d5d88ff95cc91b2560d7e8"
+    },
+    {
+      "plaintext": "test.user@example.com-10",
+      "iv_hex": "95e94a4a5b6b87264bfd4ac6",
+      "stored_hex": "95e94a4a5b6b87264bfd4ac6fe68ade022134af9aafdb156c12e39ae7e3a76eaddf8b86db22d0cc5222ea17202190a725c1eec91",
+      "hmac_hex": "f90f8cf650bf6e2281c1d285f311ca9460ac6b0de865a9e66e576356af2d4300"
+    },
+    {
+      "plaintext": "010-1234-5678-11",
+      "iv_hex": "ffa1f5b733ec6f06e4363d2a",
+      "stored_hex": "ffa1f5b733ec6f06e4363d2aaa8d446a9bdfb28f33065989bf75c398485b83d4891a4b2e96ed260646eb3b02",
+      "hmac_hex": "0865d11ec25f2c0921188ee588bf5089a8f119046467646d0fadfbeb67e4a51e"
+    },
+    {
+      "plaintext": "u1@seed.example.com-12",
+      "iv_hex": "a82b6bb7470855d04a6fce84",
+      "stored_hex": "a82b6bb7470855d04a6fce84c9f0dd4675cdae291d32d1e765c63b2e10f3f257970a9826ddd87dfef659884796efe7fd4d09",
+      "hmac_hex": "82c4dbb71682f565e1f9279aa0f5b97d59a9b40c3556d87fcbb003c31d26ea0f"
+    },
+    {
+      "plaintext": "박민준-13",
+      "iv_hex": "06497cae3439d5450b298b3c",
+      "stored_hex": "06497cae3439d5450b298b3ce0379954d33ae041aeebeda89b9dccdd74b4a082e9de28ba0dca24c2",
+      "hmac_hex": "94cbb3d591feef78fe8b3d3199c7bc6baaf165b204c8fdd0a3d095fbe1520e47"
+    },
+    {
+      "plaintext": "010-9876-5432-14",
+      "iv_hex": "910a356dcced5cef9ac628f6",
+      "stored_hex": "910a356dcced5cef9ac628f68a2dc8c4de90bcfb458e220844d106a9841b4702d68b35ea2ef49257dc2ee070",
+      "hmac_hex": "a178012545f7c57ba1a17a093ad0d4994e82e14d7996cb5f9a232a8354b62219"
+    },
+    {
+      "plaintext": "이하은-15",
+      "iv_hex": "e77073942ea5fbac459021f6",
+      "stored_hex": "e77073942ea5fbac459021f69ee653c3e75eaf3a861eb3f5093cc62ced12e48c921711f1e453cf3b",
+      "hmac_hex": "cd382727ac13512ff84a9c7730ee37b4bdcdf822d129d960e9d924337e684736"
+    },
+    {
+      "plaintext": "홍길동-16",
+      "iv_hex": "4e2a3b7930a16247d32fa634",
+      "stored_hex": "4e2a3b7930a16247d32fa6349e5545d4fd8d29c0a07126dedce5361a784723dad6a9d5e592c8068c",
+      "hmac_hex": "36b5955b461c99dbf79a472f849bc461382508c5c6345a09f1fb0c00e77cdcbb"
+    },
+    {
+      "plaintext": "김서연-17",
+      "iv_hex": "5573f176e2eed5402cb99cf3",
+      "stored_hex": "5573f176e2eed5402cb99cf39537fbaa10c0865510bd78fab8c2efd6bc1cb81da0589091dc02ac3d",
+      "hmac_hex": "ecfa386b479b7e6bc42e5c98ea09e0ad3bce4db6faa9364e0e49c1a0f855a449"
+    },
+    {
+      "plaintext": "test.user@example.com-18",
+      "iv_hex": "9d56f7fd3b5c6787153efe15",
+      "stored_hex": "9d56f7fd3b5c6787153efe151a3783c48ff575900c622904e28a5a7f7f2b9fbe6f060a64f1c81a2b7fa5c6a60788edc60fb09f8b",
+      "hmac_hex": "b688993e0a48b7a831d953832115554fc3b0c776ce90ff2d87bd419b34988310"
+    },
+    {
+      "plaintext": "010-1234-5678-19",
+      "iv_hex": "c23e54244c6b9aec9de18743",
+      "stored_hex": "c23e54244c6b9aec9de187437ca0a93180bde7f9092aa07ac8cbe18836be58b1bcbce2b434a39a3d427362c2",
+      "hmac_hex": "b1ac050a57cf8f4c54a44cf266a0c2770d5d0fa476f7993a25ca1e9d03c6fa94"
+    }
+  ]
+}

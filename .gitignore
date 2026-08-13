@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+out/
+.env
+seed_manifest.json
+
+# 내부 문서 — Confluence 전용. 공개 저장소에 올리지 않는다.
+# 비공개 저장소로 운영한다면 이 두 줄을 지우고 `git add -f internal/` 하면 된다.
+internal/

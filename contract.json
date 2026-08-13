@@ -1,0 +1,198 @@
+{
+  "version": 1,
+  "table_vocabulary": {
+    "coupons": "회차 (구 문서의 campaign)",
+    "issuances": "발급건 (구 문서의 coupon)",
+    "issuance_histories": "구 문서의 coupon_histories",
+    "issuance_usages": "구 문서의 coupon_usages"
+  },
+  "target_key": {
+    "STOCK_MISMATCH": "COUPON:{coupons.id}",
+    "DUP_PER_MEMBER": "COUPON:{coupons.id}|MEMBER:{members.id}",
+    "REPLAY_MISMATCH": "ISSUANCE:{issuances.id}",
+    "ILLEGAL_TRANSITION": "HISTORY:{issuance_histories.id}",
+    "USAGE_MISMATCH": "ISSUANCE:{issuances.id}",
+    "GRADE_VIOLATION": "ISSUANCE:{issuances.id}"
+  },
+  "finding_types": [
+    "STOCK_MISMATCH",
+    "DUP_PER_MEMBER",
+    "REPLAY_MISMATCH",
+    "ILLEGAL_TRANSITION",
+    "USAGE_MISMATCH",
+    "GRADE_VIOLATION"
+  ],
+  "legacy_columns": {
+    "verification_findings.campaign_id": "coupons.id",
+    "verification_findings.coupon_id": "issuances.id",
+    "asof_state.coupon_id": "issuances.id"
+  },
+  "replay_rule": {
+    "state": "(created_at, id) 오름차순 마지막 이력의 to_status",
+    "filter": "created_at <= asOf",
+    "active_usage": "used_at <= asOf AND (canceled_at IS NULL OR canceled_at > asOf)"
+  },
+  "v2_rule": "(coupon_id, member_id) 중복 그룹당 1건 + (coupon_id, code) 중복 그룹에서 MIN(id) 를 제외한 각 행 1건. target_key 는 위반 행의 (coupon_id, member_id).",
+  "legal_transitions": [
+    {
+      "from": null,
+      "event": "ISSUE",
+      "to": "ISSUED"
+    },
+    {
+      "from": "ISSUED",
+      "event": "USE",
+      "to": "USED"
+    },
+    {
+      "from": "USED",
+      "event": "CANCEL_USE",
+      "to": "ISSUED"
+    },
+    {
+      "from": "ISSUED",
+      "event": "CANCEL",
+      "to": "CANCELLED"
+    },
+    {
+      "from": "ISSUED",
+      "event": "EXPIRE",
+      "to": "EXPIRED"
+    }
+  ],
+  "corruption": {
+    "injections": 700,
+    "expected_rows": 800,
+    "types": [
+      {
+        "type": 1,
+        "count": 100,
+        "rules": [
+          "STOCK_MISMATCH"
+        ],
+        "desc": "재고는 줄었는데 history 에 ISSUE 기록 없음"
+      },
+      {
+        "type": 2,
+        "count": 100,
+        "rules": [
+          "REPLAY_MISMATCH"
+        ],
+        "desc": "history 는 USED 인데 issuances.status 는 ISSUED"
+      },
+      {
+        "type": 3,
+        "count": 100,
+        "rules": [
+          "STOCK_MISMATCH",
+          "ILLEGAL_TRANSITION"
+        ],
+        "desc": "CANCEL_USE 가 2번 기록되어 재고 이중 복원"
+      },
+      {
+        "type": 4,
+        "count": 100,
+        "rules": [
+          "ILLEGAL_TRANSITION"
+        ],
+        "desc": "종단 상태(EXPIRED)에서 USED 로 불법 전이"
+      },
+      {
+        "type": 5,
+        "count": 100,
+        "rules": [
+          "DUP_PER_MEMBER"
+        ],
+        "desc": "동일 쿠폰(code)이 두 유저에게 발급"
+      },
+      {
+        "type": 6,
+        "count": 100,
+        "rules": [
+          "DUP_PER_MEMBER"
+        ],
+        "desc": "동일 유저가 같은 회차에서 2건 발급"
+      },
+      {
+        "type": 7,
+        "count": 100,
+        "rules": [
+          "USAGE_MISMATCH"
+        ],
+        "desc": "status 는 ISSUED 인데 활성 usages 행이 남아 있음"
+      }
+    ],
+    "matrix": [
+      {
+        "corrupt_type": 1,
+        "finding_type": "STOCK_MISMATCH",
+        "rows": 100
+      },
+      {
+        "corrupt_type": 2,
+        "finding_type": "REPLAY_MISMATCH",
+        "rows": 100
+      },
+      {
+        "corrupt_type": 3,
+        "finding_type": "ILLEGAL_TRANSITION",
+        "rows": 100
+      },
+      {
+        "corrupt_type": 3,
+        "finding_type": "STOCK_MISMATCH",
+        "rows": 100
+      },
+      {
+        "corrupt_type": 4,
+        "finding_type": "ILLEGAL_TRANSITION",
+        "rows": 100
+      },
+      {
+        "corrupt_type": 5,
+        "finding_type": "DUP_PER_MEMBER",
+        "rows": 100
+      },
+      {
+        "corrupt_type": 6,
+        "finding_type": "DUP_PER_MEMBER",
+        "rows": 100
+      },
+      {
+        "corrupt_type": 7,
+        "finding_type": "USAGE_MISMATCH",
+        "rows": 100
+      }
+    ]
+  },
+  "crypto": {
+    "cipher": "AES-256-GCM",
+    "layout": "IV(12B) || ciphertext || tag(16B)",
+    "aad": null,
+    "column_type": "varbinary(256)",
+    "blind_index": "lower(hex(HMAC-SHA256(HMAC_KEY, normalized)))",
+    "normalize": {
+      "email": "trim + lowercase",
+      "phone": "digits only"
+    },
+    "key_encoding": "base64(32 bytes) in AES_KEY / HMAC_KEY env"
+  },
+  "fingerprint": {
+    "formula": "SHA256(max(issuance_histories.id) | count(issuance_histories) | count(issuances) | sum(coupon_stocks.active_count) | max(issuances.updated_at))",
+    "separator": "|",
+    "timestamp_format": "%Y-%m-%d %H:%M:%S.%f",
+    "history_filter": "created_at <= asOf"
+  },
+  "findings_checksum": {
+    "input": "정렬된 (finding_type, target_key) 만",
+    "encoding": "finding_type + U+001F + target_key + U+001E 반복 후 SHA-256"
+  },
+  "not_verified": [
+    "coupon_templates.stock_per_occurrence ↔ coupon_stocks.total_quantity 불일치",
+    "만료 누락 (expires_at < asOf 인데 status=ISSUED) — 별도 관측 지표",
+    "고아 이력 — V4 가 전이 연쇄로 잡는다",
+    "close_at 은 완판돼도 갱신하지 않는다",
+    "CLOSED 회차의 잔여재고 증가",
+    "스냅샷 컬럼 (name/policy/discount/mask/issued_grade)"
+  ]
+}

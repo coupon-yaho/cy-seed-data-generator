@@ -1,0 +1,6 @@
+# 필수
+cryptography>=42.0        # AES-256-GCM / HMAC-SHA256
+
+# 권장 (없어도 동작한다)
+Faker>=25.0               # 한글 이름·이메일 — 없으면 내장 생성기로 폴백 (--no-faker)
+PyMySQL>=1.1              # LOAD DATA LOCAL INFILE — 없으면 docker exec 경로로 폴백
