@@ -138,33 +138,57 @@ def ipf_integer(
                     x[i][j] *= f
 
     out = [[int(x[i][j]) for j in range(m)] for i in range(n)]
-    row_rem = [row_totals[i] - sum(out[i]) for i in range(n)]
-    col_rem = [col_totals[cols[j]] - sum(out[i][j] for i in range(n)) for j in range(m)]
 
-    cells = sorted(
-        ((x[i][j] - out[i][j], i, j) for i in range(n) for j in range(m) if x[i][j] > 0),
-        key=lambda t: (-t[0], t[1], t[2]),
-    )
-    for _frac, i, j in cells:
-        if row_rem[i] > 0 and col_rem[j] > 0:
-            out[i][j] += 1
-            row_rem[i] -= 1
-            col_rem[j] -= 1
-    # 잔여 복구 (가중치 0 인 칸은 건드리지 않는다)
-    if any(row_rem) or any(col_rem):
-        for i in range(n):
-            while row_rem[i] > 0:
-                for j in range(m):
-                    if col_rem[j] > 0 and x[i][j] > 0:
-                        out[i][j] += 1
-                        row_rem[i] -= 1
-                        col_rem[j] -= 1
+    # 1단계 — 행 합을 정확히 맞춘다. 행 안에서 소수부가 큰 칸부터 +1.
+    #   행별로 닫아 두면 이후 열 보정이 행 합을 건드리지 않는다.
+    for i in range(n):
+        rem = row_totals[i] - sum(out[i])
+        if rem <= 0:
+            continue
+        order = sorted(
+            (j for j in range(m) if x[i][j] > 0),
+            key=lambda j: (-(x[i][j] - out[i][j]), j),
+        )
+        if not order:
+            raise RuntimeError(f"행 {i}: 배정 가능한 열이 없습니다 (가중치가 전부 0)")
+        for k in range(rem):
+            out[i][order[k % len(order)]] += 1
+
+    # 2단계 — 열 합을 이동(transfer)으로 맞춘다. 같은 행 안에서 열만 바꾸므로
+    #   행 합은 불변이다. 초과 열에서 1을 빼 부족 열에 더한다.
+    def col_sum(j: int) -> int:
+        return sum(out[i][j] for i in range(n))
+
+    guard = 0
+    while True:
+        dev = [col_sum(j) - col_totals[cols[j]] for j in range(m)]
+        over = [j for j in range(m) if dev[j] > 0]
+        under = [j for j in range(m) if dev[j] < 0]
+        if not over or not under:
+            break
+        moved = False
+        for jo in over:
+            for ju in under:
+                for i in range(n):
+                    if out[i][jo] > 0 and x[i][ju] > 0:
+                        out[i][jo] -= 1
+                        out[i][ju] += 1
+                        moved = True
                         break
-                else:
-                    raise RuntimeError(
-                        "상태 배분 실패: 만료 가능 회차 용량이 부족합니다. "
-                        "valid_days 범위나 상태 비율을 조정하세요."
-                    )
+                if moved:
+                    break
+            if moved:
+                break
+        if not moved:
+            short = {cols[j]: -dev[j] for j in under}
+            raise RuntimeError(
+                "상태 배분 실패: 제약을 만족하는 이동 경로가 없습니다. "
+                f"부족한 상태={short}. 만료 가능 회차 용량이나 상태 비율을 확인하세요."
+            )
+        guard += 1
+        if guard > n * m * 64:
+            raise RuntimeError("상태 배분이 수렴하지 않았습니다")
+
     return [{cols[j]: out[i][j] for j in range(m)} for i in range(n)]
 
 
@@ -310,15 +334,8 @@ def _plan_statuses(cat: Catalog, profile: C.Profile) -> None:
     """회차별 상태 배분. 행 합 = 발급수, 열 합 = 전역 목표."""
     past = cat.past
     total = sum(c.issue_count for c in past)
-    targets = {s: int(round(total * C.STATUS_MIX[s])) for s in C.STATUSES}
-    _rebalance(
-        [targets[s] for s in C.STATUSES],
-        [0] * len(C.STATUSES),
-        [total] * len(C.STATUSES),
-        total,
-    )
-    # _rebalance 는 리스트를 갱신하므로 다시 dict 로
-    vals = [targets[s] for s in C.STATUSES]
+    # 반올림 오차로 목표 합계가 발급 수와 어긋나므로 한 번 맞춘다
+    vals = [int(round(total * C.STATUS_MIX[s])) for s in C.STATUSES]
     _rebalance(vals, [0] * len(C.STATUSES), [total] * len(C.STATUSES), total)
     targets = dict(zip(C.STATUSES, vals))
 
