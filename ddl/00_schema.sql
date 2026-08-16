@@ -73,7 +73,7 @@ CREATE TABLE coupon_stocks (
   coupon_id       bigint   NOT NULL,
   total_quantity  int      NOT NULL,
   active_count    int      NOT NULL DEFAULT 0 COMMENT 'ISSUED + USED 합계 (누적 아님)',
-  updated_at      datetime NOT NULL,
+  updated_at      datetime(6) NOT NULL,
   PRIMARY KEY (coupon_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;
 
@@ -107,8 +107,8 @@ CREATE TABLE issuance_usages (
   issuance_id      bigint   NOT NULL,
   order_id         bigint,
   discount_amount  int      NOT NULL,
-  used_at          datetime NOT NULL,
-  canceled_at      datetime,
+  used_at          datetime(6) NOT NULL,
+  canceled_at      datetime(6),
   PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;
 
