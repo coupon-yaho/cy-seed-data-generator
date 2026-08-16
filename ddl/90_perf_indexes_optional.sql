@@ -27,3 +27,13 @@ CREATE INDEX idx_usage_issuance_active ON issuance_usages (issuance_id, canceled
 
 -- 멱등 레코드 24시간 정리 배치: created_at 인덱스가 없으면 풀스캔 (ERD.sql:407)
 CREATE INDEX idx_idem_created ON idempotency_records (created_at);
+
+-- V2 1인 1매 위반: 케이스 둘이 각각 issuances 를 통째로 집계한다.
+-- HAVING COUNT(*) > 1 은 조기 종료가 불가능해 LIMIT 이 있어도 끝까지 돈다.
+--
+-- CORRUPT 에는 uk_coupon_member 도 uk_coupon_code 도 없어(11 vs 12 참조) 두 GROUP BY 가
+-- 쓸 인덱스가 하나도 없다. FK 자동 인덱스는 issuances(coupon_id) 단일이라 못 쓴다.
+-- updated_at 을 뒤에 붙이는 이유는 규칙이 updated_at <= as_of 로 대상을 자르기 때문이다 —
+-- 안 붙이면 그룹마다 PK 로 다시 내려가 300만 번 랜덤 룩업이 된다.
+CREATE INDEX idx_issuance_coupon_member_updated ON issuances (coupon_id, member_id, updated_at);
+CREATE INDEX idx_issuance_coupon_code_updated   ON issuances (coupon_id, code, updated_at);
