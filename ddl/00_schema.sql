@@ -219,12 +219,14 @@ CREATE TABLE expected_findings (
 --
 -- PRD 의 정의는 ORDER BY as_of DESC LIMIT 1 인데, 아래 write_verification_runs 가
 -- CLEAN 을 같은 as_of 에 attempt 1·2 로 심고 둘 다 COMPLETE 라 그것만으로는 비결정적이다.
--- id 를 두 번째 키로 넣어 "같은 시각이면 나중 시도" 로 못 박는다.
+-- attempt 를 두 번째 키로 넣어 "같은 시각이면 나중 시도" 를 SQL 로 표현한다.
+-- id 는 최종 타이브레이커다. 증분은 윈도우 집계라 대시보드의 분모가 될 수 없어 제외한다.
 
 CREATE VIEW v_latest_stats_run AS
 SELECT id
   FROM verification_runs
  WHERE dataset = 'CLEAN'
+   AND scope = 'FULL'
    AND stats_status = 'COMPLETE'
- ORDER BY as_of DESC, id DESC
+ ORDER BY as_of DESC, attempt DESC, id DESC
  LIMIT 1;

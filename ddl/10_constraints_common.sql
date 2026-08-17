@@ -30,3 +30,9 @@ CREATE UNIQUE INDEX uk_run_finding ON verification_findings (run_id, finding_typ
 -- 정답 매니페스트의 중복 방지. cy-be 의 대조가 집합 차와 같아지는 근거다 —
 -- LEFT JOIN … IS NULL 은 한쪽에 같은 키가 둘 있으면 행을 불린다.
 CREATE UNIQUE INDEX uk_expected ON expected_findings (seed_run_id, finding_type, target_key);
+
+-- CLEAN 은 대조할 묶음이 없다. 불변식을 DB 제약으로 표현한다 —
+-- 정의 원본은 cy-be 의 V7__verification_run_seed_run_id.sql 이다.
+ALTER TABLE verification_runs
+  ADD CONSTRAINT ck_seed_run_id_corrupt_only
+  CHECK (seed_run_id IS NULL OR dataset = 'CORRUPT');

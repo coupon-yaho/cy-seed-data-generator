@@ -100,7 +100,11 @@ def write_verification_runs(
     # 정답과 대조한 실행을 재현하므로 profile.seed_run_id 를 적는다. CLEAN 은 대조 상대가
     # 없어 None 이다 — 검출 0건이 곧 통과다.
     if profile.is_corrupt:
-        rows = [(1, "FULL", 1, "FAIL", "SKIPPED", len(pairs), profile.seed_run_id)]
+        # --no-seed-corrupt-run 이면 findings 가 None 이라 대조가 재현되지 않는다.
+        # 그때도 seed_run_id 를 적으면 "묶음 N 과 대조해 0건" 이라는 거짓 증적이 되고,
+        # 검증기가 완전히 고장난 상태의 서명과 구별되지 않는다.
+        compared = profile.seed_run_id if findings else None
+        rows = [(1, "FULL", 1, "FAIL", "SKIPPED", len(pairs), compared)]
     else:
         rows = [
             (1, "FULL", 1, "PASS", "COMPLETE", 0, None),
