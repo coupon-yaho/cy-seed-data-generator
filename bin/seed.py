@@ -172,9 +172,10 @@ def do_generate(args, db=None) -> dict:
 
 def create_schema(db, dataset: str) -> None:
     log("스키마 생성 (테이블 + PK 만)")
+    # 데이터셋별로 테이블이 갈리지 않는다. expected_findings 도 CLEAN 에 만든다 —
+    # 스키마 주인은 cy-be 의 Flyway 이고 그쪽은 데이터셋을 구분하지 않는다.
+    # 갈리면 cy-be 의 SchemaParityTest 가 잡는다.
     db.script(os.path.join(DDL, "00_schema.sql"))
-    if dataset == "corrupt":
-        db.script(os.path.join(DDL, "01_schema_corrupt.sql"))
 
 
 def apply_constraints(db, dataset: str, perf_indexes: bool) -> None:

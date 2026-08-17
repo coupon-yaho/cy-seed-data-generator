@@ -182,11 +182,10 @@ seed/
     writer.py / loader.py       TSV 샤드, LOAD DATA
     manifest.py                 seed_manifest.json
   ddl/
-    00_schema.sql               테이블과 PK만
-    01_schema_corrupt.sql       expected_findings
-    10_constraints_common.sql   UNIQUE, FK
+    00_schema.sql               테이블과 PK만 (expected_findings 포함 — 데이터셋 무관)
+    10_constraints_common.sql   UNIQUE, FK, uk_expected
     11_constraints_clean.sql    uk_coupon_member, uk_coupon_code, CHECK
-    12_constraints_corrupt.sql  uk_expected
+    12_constraints_corrupt.sql  idx_expected_type
     90_perf_indexes_optional.sql
   docs/                         설계 문서
   java/CryptoConverterReference.java

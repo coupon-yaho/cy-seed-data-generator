@@ -26,3 +26,7 @@ ALTER TABLE hourly_stats        ADD FOREIGN KEY (run_id)      REFERENCES verific
 
 CREATE UNIQUE INDEX uk_run_params  ON verification_runs (as_of, dataset, scope, attempt);
 CREATE UNIQUE INDEX uk_run_finding ON verification_findings (run_id, finding_type, target_key);
+
+-- 정답 매니페스트의 중복 방지. cy-be 의 대조가 집합 차와 같아지는 근거다 —
+-- LEFT JOIN … IS NULL 은 한쪽에 같은 키가 둘 있으면 행을 불린다.
+CREATE UNIQUE INDEX uk_expected ON expected_findings (seed_run_id, finding_type, target_key);

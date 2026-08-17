@@ -192,3 +192,23 @@ CREATE TABLE hourly_stats (
   issued_total  int        NOT NULL DEFAULT 0,
   PRIMARY KEY (run_id, day_of_week, hour)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;
+
+-- 정답 매니페스트. CLEAN 에서는 비어 있지만 테이블은 존재한다 —
+-- 스키마를 정의하는 것은 cy-be 의 Flyway 이고(V1__init_schema.sql) 그쪽은 데이터셋을 구분하지
+-- 않는다. "CLEAN 은 매니페스트를 가질 수 없다" 는 성질은 스키마가 아니라 코드가 지킨다
+-- (VerifyJobConfig#freezeSeedRunId 가 dataset == CLEAN 이면 즉시 반환한다).
+-- 어긋나면 cy-be 의 SchemaParityTest 가 잡는다.
+CREATE TABLE expected_findings (
+  id            bigint       NOT NULL AUTO_INCREMENT,
+  seed_run_id   bigint       NOT NULL COMMENT '어느 주입 실행이 만든 정답인가 (verification_runs 와 별도 네임스페이스)',
+  corrupt_type  tinyint      NOT NULL COMMENT '오염 유형 1~7 (8 = V6 수동 확인용, 700 집계 밖)',
+  finding_type  varchar(40)  NOT NULL COMMENT 'V1~V6 상수 — findings 와 동일 어휘',
+  target_key    varchar(64)  NOT NULL COMMENT 'findings 와 동일 형식',
+  campaign_id   bigint       COMMENT 'coupons.id',
+  member_id     bigint,
+  coupon_id     bigint       COMMENT 'issuances.id',
+  history_id    bigint,
+  note          varchar(200),
+  created_at    datetime(6)  NOT NULL,
+  PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;
