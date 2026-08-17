@@ -65,9 +65,10 @@ def write_stats(writers, catalog: Catalog, totals: Totals, run_ids: list[int]) -
     cs, gs, hs = writers["coupon_stats"], writers["grade_stats"], writers["hourly_stats"]
     for run_id in run_ids:
         for c in catalog.coupons:
-            s = totals.coupon_stats.get(c.id)
-            if not s:
-                continue
+            # get() + continue 로 두면 회차가 조용히 빠진다. _run_coupon 의 모든 종료 경로가
+            # 항목을 채우므로(issuances.py 의 발급 0건 경로와 정상 경로) 누락은 버그이고,
+            # KeyError 로 즉시 드러나야 한다. cy-be 는 회차 전체에 행을 쓴다(coupons 드라이빙).
+            s = totals.coupon_stats[c.id]
             cs.write(run_id, c.id, s["issued_total"], s["issued"], s["used"],
                      s["cancelled"], s["expired"], s["sold_out_seconds"])
         for (coupon_id, grade), (issued_total, used_total) in sorted(totals.grade.items()):

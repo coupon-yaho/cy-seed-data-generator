@@ -14,7 +14,7 @@
 -- 진짜로 무인덱스인 축은 status · expires_at · canceled_at · created_at 이다.
 
 -- V1 / 회차별 상태 집계: 지금은 issuances 풀스캔 + 필터
-CREATE INDEX idx_issuance_coupon_status ON issuances (coupon_id, status);
+CREATE INDEX idx_issuance_coupon_status ON issuances (coupon_id, status, updated_at, issued_at);
 
 -- 만료 배치 · "만료 임박" 관측 지표: 지금은 300만 행 풀스캔
 CREATE INDEX idx_issuance_status_expires ON issuances (status, expires_at);
@@ -37,3 +37,25 @@ CREATE INDEX idx_idem_created ON idempotency_records (created_at);
 -- 안 붙이면 그룹마다 PK 로 다시 내려가 300만 번 랜덤 룩업이 된다.
 CREATE INDEX idx_issuance_coupon_member_updated ON issuances (coupon_id, member_id, updated_at);
 CREATE INDEX idx_issuance_coupon_code_updated   ON issuances (coupon_id, code, updated_at);
+
+-- 통계 집계(cy-be CY-202). asof_state 를 재사용할 수 없어 원본을 다시 읽는다 —
+-- 통계가 세는 값은 issuances.status 이고 asof_state.state 와 다를 수 있는 것이 검증
+-- 대상이라 순환이 되며, 요일·시각 분포는 issuance_histories 에만 있다.
+--
+-- GROUP BY coupon_id, issued_grade 가 무인덱스 풀스캔이다. status 를 뒤에 붙이는 이유는
+-- used_total 이 SUM(status = 'USED') 라, 없으면 그룹마다 PK 로 다시 내려간다.
+--
+-- updated_at 을 마지막에 붙인다. 통계 셋도 규칙 여섯과 같은 updated_at <= as_of 컷을 쓰므로,
+-- 안 붙이면 인덱스로 그룹을 만들고도 행마다 PK 로 내려가 컷을 확인한다 —
+-- idx_issuance_coupon_member_updated 가 같은 이유로 updated_at 을 담는다.
+-- 위 idx_issuance_coupon_status 도 같은 이유로 (status, updated_at, issued_at) 까지 담는다
+-- (issued_at 은 sold_out_seconds 의 MAX(issued_at) 몫이다).
+CREATE INDEX idx_issuance_coupon_grade ON issuances (coupon_id, issued_grade, status, updated_at);
+
+-- event_type = 'ISSUE' 필터가 무인덱스인데 이력이 534만 행이다. id 를 뒤에 붙이는 이유는
+-- 통계가 리플레이와 같은 창(id <= 얼린 상한)을 쓰기 때문이다.
+CREATE INDEX idx_history_event_created ON issuance_histories (event_type, created_at, id);
+
+-- 통계의 "ISSUE 이력 없는 발급건" 검산. NOT EXISTS 의 드라이빙이 issuances 이고
+-- 컷이 updated_at 이라 선행 컬럼이 updated_at 인 축이 하나는 있어야 한다.
+CREATE INDEX idx_issuance_updated ON issuances (updated_at, id);
