@@ -96,20 +96,23 @@ def write_verification_runs(
     w = writers["verification_runs"]
     complete_runs: list[int] = []
 
+    # seed_run_id 는 "어느 정답 묶음과 대조했나" 다. CORRUPT 가 심는 run 은 이 주입이 만든
+    # 정답과 대조한 실행을 재현하므로 profile.seed_run_id 를 적는다. CLEAN 은 대조 상대가
+    # 없어 None 이다 — 검출 0건이 곧 통과다.
     if profile.is_corrupt:
-        rows = [(1, "FULL", 1, "FAIL", "SKIPPED", len(pairs))]
+        rows = [(1, "FULL", 1, "FAIL", "SKIPPED", len(pairs), profile.seed_run_id)]
     else:
         rows = [
-            (1, "FULL", 1, "PASS", "COMPLETE", 0),
-            (2, "FULL", 2, "PASS", "COMPLETE", 0),
-            (3, "INCREMENTAL", 1, "PASS", "SKIPPED", 0),
+            (1, "FULL", 1, "PASS", "COMPLETE", 0, None),
+            (2, "FULL", 2, "PASS", "COMPLETE", 0, None),
+            (3, "INCREMENTAL", 1, "PASS", "SKIPPED", 0, None),
         ]
 
-    for run_id, scope, attempt, verdict, stats_status, count in rows:
+    for run_id, scope, attempt, verdict, stats_status, count, seed_run_id in rows:
         from_ts = as_of - dt.timedelta(days=1) if scope == "INCREMENTAL" else None
         w.write(
-            run_id, as_of, from_ts, scope, dataset, attempt, verdict, stats_status,
-            count, checksum if count else findings_checksum([]), fp,
+            run_id, as_of, from_ts, scope, dataset, seed_run_id, attempt, verdict,
+            stats_status, count, checksum if count else findings_checksum([]), fp,
             started, started + dt.timedelta(minutes=4 + run_id),
         )
         if stats_status == "COMPLETE":

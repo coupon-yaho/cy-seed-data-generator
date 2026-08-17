@@ -65,7 +65,8 @@ TABLES: dict[str, list[tuple[str, str]]] = {
     ],
     "verification_runs": [
         ("id", "int"), ("as_of", "dt6"), ("from_ts", "dt6"), ("scope", "str"),
-        ("dataset", "str"), ("attempt", "int"), ("verdict", "str"),
+        ("dataset", "str"), ("seed_run_id", "int"), ("attempt", "int"),
+        ("verdict", "str"),
         ("stats_status", "str"), ("finding_count", "int"),
         ("findings_checksum", "str"), ("dataset_fingerprint", "str"),
         ("started_at", "dt6"), ("finished_at", "dt6"),

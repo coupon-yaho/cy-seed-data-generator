@@ -129,6 +129,7 @@ CREATE TABLE verification_runs (
   from_ts              datetime(6),
   scope                varchar(12) NOT NULL COMMENT 'FULL / INCREMENTAL',
   dataset              varchar(10) NOT NULL COMMENT 'CLEAN / CORRUPT',
+  seed_run_id          bigint      COMMENT '대조한 정답 묶음. CORRUPT 만 채운다 — CLEAN 은 대조 상대가 없다',
   attempt              int         NOT NULL DEFAULT 1,
   verdict              varchar(8)  COMMENT 'PASS / FAIL',
   stats_status         varchar(10) COMMENT 'COMPLETE / PARTIAL / SKIPPED',
@@ -212,3 +213,18 @@ CREATE TABLE expected_findings (
   created_at    datetime(6)  NOT NULL,
   PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;
+
+-- 대시보드가 읽을 "완결된 최신 통계 스냅샷". 정의 원본은 cy-be 의
+-- V8__latest_stats_run_view.sql 이고 어긋나면 SchemaParityTest 가 잡는다.
+--
+-- PRD 의 정의는 ORDER BY as_of DESC LIMIT 1 인데, 아래 write_verification_runs 가
+-- CLEAN 을 같은 as_of 에 attempt 1·2 로 심고 둘 다 COMPLETE 라 그것만으로는 비결정적이다.
+-- id 를 두 번째 키로 넣어 "같은 시각이면 나중 시도" 로 못 박는다.
+
+CREATE VIEW v_latest_stats_run AS
+SELECT id
+  FROM verification_runs
+ WHERE dataset = 'CLEAN'
+   AND stats_status = 'COMPLETE'
+ ORDER BY as_of DESC, id DESC
+ LIMIT 1;
