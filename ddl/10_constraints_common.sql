@@ -36,3 +36,11 @@ CREATE UNIQUE INDEX uk_expected ON expected_findings (seed_run_id, finding_type,
 ALTER TABLE verification_runs
   ADD CONSTRAINT ck_seed_run_id_corrupt_only
   CHECK (seed_run_id IS NULL OR dataset = 'CORRUPT');
+
+-- 퍼널 등식(issued + used + cancelled + expired = issued_total)이 조용히 깨지는 것을 막는다.
+-- 통계는 issued_total 을 COUNT(*) 로, 나머지 넷을 SUM(status = 'X') 로 센다 — status 가 네 값
+-- 밖이면 그 행이 분모에만 남아 대시보드에서 "발급률이 낮다" 로 보인다.
+-- 오염셋도 이 네 값만 쓴다(seedgen/config.py 의 STATUSES).
+ALTER TABLE issuances
+  ADD CONSTRAINT ck_issuance_status
+  CHECK (status IN ('ISSUED', 'USED', 'CANCELLED', 'EXPIRED'));
