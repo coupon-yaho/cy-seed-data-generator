@@ -20,7 +20,7 @@ CREATE INDEX idx_issuance_coupon_status ON issuances (coupon_id, status);
 -- ⬆️ 승격됨 — 10_constraints_common.sql 로 옮겼다. 여기서 다시 만들면 중복 오류가 난다.
 --    성능이 아니라 가용성 문제였다: 이것이 없으면 만료 배치가 도는 동안 신규 발급 INSERT 가
 --    오류 1205 로 죽는다(실측 근거는 cy-be 의 docs/12-expire-lock-measurement.md).
---    나머지 다섯은 아직 여기 있다 — 그것들은 느려질 뿐 막지는 않는다.
+--    나머지 넷은 아직 여기 있다 — 그것들은 느려질 뿐 막지는 않는다.
 
 -- Step 0 리플레이 정렬 (created_at, id). FK 인덱스는 issuance_id 까지만 커버한다
 CREATE INDEX idx_history_issuance ON issuance_histories (issuance_id, created_at);
