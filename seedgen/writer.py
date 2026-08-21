@@ -233,4 +233,12 @@ class WriterSet:
 
 
 def utcnow_naive() -> dt.datetime:
-    return dt.datetime.now().replace(microsecond=0)
+    """타임존 없는 UTC 시각.
+
+    이 저장소가 만드는 모든 naive datetime 은 UTC 다. 배치가 Clock.systemUTC() 로
+    asOf 를 만들고 expires_at 은 타임존 없는 datetime(6) 이라, 쓰는 쪽이 로컬 벽시계를
+    쓰면 그 차이가 그대로 만료 지연이 된다.
+
+    예전에는 이름만 utc 이고 몸통이 dt.datetime.now() 였다.
+    """
+    return dt.datetime.now(dt.timezone.utc).replace(tzinfo=None, microsecond=0)

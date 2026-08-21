@@ -72,7 +72,8 @@ def main() -> int:
     p.add_argument("--seeds", type=int, nargs="+", default=[20260812, 7, 999])
     args = p.parse_args()
 
-    base = dt.datetime.now().replace(microsecond=0)
+    # 시드와 같은 기준(UTC)이어야 계획 검사가 실제 생성과 같은 날짜를 본다.
+    base = dt.datetime.now(dt.timezone.utc).replace(tzinfo=None, microsecond=0)
     cases = [("clean", 1.0), ("corrupt", 0.2)]
     problems: list[str] = []
     checked = 0

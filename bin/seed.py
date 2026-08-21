@@ -67,7 +67,11 @@ def do_generate(args, db=None) -> dict:
     )
     as_of = (
         dt.datetime.strptime(args.as_of, "%Y-%m-%d %H:%M:%S")
-        if args.as_of else dt.datetime.now().replace(microsecond=0)
+        # UTC 로 고정한다. 배치가 Clock.systemUTC() 로 asOf 를 만들고(cy-be TimeConfig),
+        # expires_at 은 타임존 없는 datetime(6) 이라 두 벽시계가 다르면 그 차이가
+        # 그대로 만료 지연이 된다 — KST 머신에서 시드를 만들고 UTC 컨테이너에서 배치를
+        # 돌리면 9시간치가 안 만료되고, 만료 누락은 검증 finding 이 아니라 아무도 안 잡는다.
+        if args.as_of else dt.datetime.now(dt.timezone.utc).replace(tzinfo=None, microsecond=0)
     )
     outdir = args.out
     if args.clean_out and os.path.isdir(outdir):
@@ -215,7 +219,11 @@ def do_verify(args, db) -> int:
         "SELECT DATE_FORMAT(MAX(as_of), '%Y-%m-%d %H:%i:%s.%f') FROM verification_runs"
     )
     if not as_of:
-        as_of = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        # 생성 쪽과 같은 기준(UTC)이어야 한다. 이 값으로 만료 판정을 하므로
+        # 로컬 벽시계를 쓰면 자가검증만 다른 시점을 본다.
+        as_of = (dt.datetime.now(dt.timezone.utc)
+                 .replace(tzinfo=None)
+                 .strftime("%Y-%m-%d %H:%M:%S"))
     log(f"자가검증 시작 — as_of={as_of}")
 
     problems = verify.check_invariants(db, args.dataset)
