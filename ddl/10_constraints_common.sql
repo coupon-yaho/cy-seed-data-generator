@@ -19,6 +19,17 @@ CREATE UNIQUE INDEX uk_template_open ON coupons (template_id, open_at);
 -- SchemaParityTest 가 통과한다.
 CREATE INDEX idx_issuance_status_expires ON issuances (status, expires_at);
 
+-- 만료 배치가 청크 경계를 구하는 문장(SELECT MAX(id) ... WHERE updated_at = :committedAt)이
+-- 쓰는 인덱스다. updated_at 이 어디에도 없으면 그 문장이 EXPIRED 전 건을 훑는다 —
+-- 이미 만료된 행이 쌓일수록 나빠지고, 진도가 실행 사이로 안 넘어가므로 매 실행의
+-- 첫 청크가 그 비용을 낸다.
+--
+-- 실측(200,000행 · 이미 EXPIRED 150,000 누적): 첫 청크 200,017행 → 1,001행.
+-- 수치는 cy-be 의 docs/12-expire-lock-measurement.md §5 에 있다.
+--
+-- cy-be 의 V12 와 짝이고, 이름·컬럼이 같아야 SchemaParityTest 가 통과한다.
+CREATE INDEX idx_issuance_updated_at ON issuances (updated_at, id);
+
 ALTER TABLE members             ADD FOREIGN KEY (membership_grade) REFERENCES grades (code);
 ALTER TABLE coupon_templates    ADD FOREIGN KEY (brand_id)   REFERENCES brands (id);
 ALTER TABLE coupons             ADD FOREIGN KEY (template_id) REFERENCES coupon_templates (id);
