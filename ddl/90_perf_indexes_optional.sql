@@ -21,6 +21,11 @@ CREATE INDEX idx_issuance_coupon_status ON issuances (coupon_id, status);
 --    성능이 아니라 가용성 문제였다: 이것이 없으면 만료 배치가 도는 동안 신규 발급 INSERT 가
 --    오류 1205 로 죽는다(실측 근거는 cy-be 의 docs/12-expire-lock-measurement.md).
 --    나머지 넷은 아직 여기 있다 — 그것들은 느려질 뿐 막지는 않는다.
+--
+-- 만료 배치 청크 경계(SELECT MAX(id) ... WHERE updated_at = :committedAt)
+-- ⬆️ 10_constraints_common.sql 에 idx_issuance_updated_at 로 있다. 이 처방전에 원래 없던
+--    인덱스이고, 위 것처럼 '빼 둔 것을 재서 승격' 한 것이 아니라 만료 배치를 만들다
+--    새로 필요해진 것이다. 근거는 docs/12 §5 의 실측(첫 청크 200,017행 → 1,001행)이다.
 
 -- Step 0 리플레이 정렬 (created_at, id). FK 인덱스는 issuance_id 까지만 커버한다
 CREATE INDEX idx_history_issuance ON issuance_histories (issuance_id, created_at);
