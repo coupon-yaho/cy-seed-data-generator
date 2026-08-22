@@ -215,8 +215,11 @@ def do_load_files(args, db) -> None:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def do_verify(args, db) -> int:
+    # origin='SEED' 로 좁힌다. 이 as_of 는 "시드가 무엇을 기준으로 만들었나" 이고,
+    # 배치가 나중에 다른 as_of 로 돌면 MAX 가 그것을 집어 자가검증이 다른 시점을 본다.
     as_of = args.as_of or db.scalar(
         "SELECT DATE_FORMAT(MAX(as_of), '%Y-%m-%d %H:%i:%s.%f') FROM verification_runs"
+        " WHERE origin = 'SEED'"
     )
     if not as_of:
         # 생성 쪽과 같은 기준(UTC)이어야 한다. 이 값으로 만료 판정을 하므로

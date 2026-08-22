@@ -138,6 +138,7 @@ CREATE TABLE verification_runs (
   dataset_fingerprint  char(64),
   started_at           datetime(6) NOT NULL,
   finished_at          datetime(6),
+  origin               varchar(6)  NOT NULL DEFAULT 'BATCH' COMMENT 'SEED / BATCH — 시드가 심은 기준 행인가, 배치가 만든 실행인가',
   PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;
 
