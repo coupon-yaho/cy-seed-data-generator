@@ -115,10 +115,18 @@ def write_verification_runs(
 
     for run_id, scope, attempt, verdict, stats_status, count, seed_run_id in rows:
         from_ts = as_of - dt.timedelta(days=1) if scope == "INCREMENTAL" else None
+        # origin='SEED' — 여기서 심는 것은 "완결된 과거 run" 이지 배치가 낸 판정이 아니다.
+        #
+        # 관제의 판정 지표(cy_verification_verdict)가 "가장 최근에 닫힌 실행" 을 되읽는데,
+        # 이 행을 배치 판정으로 읽으면 결과가 정확히 뒤집힌다:
+        #   CLEAN   검증을 한 번도 안 돌려도 PASS 가 나가 "안 돌린 채 통과" 가 성립한다
+        #   CORRUPT FAIL/800 이 상시 발화해 알림이 영원히 안 꺼진다
+        # cy-be 의 rejectExistingRun 이 같은 함정을 막고 있었는데 되읽기 경로에는
+        # 그 방어가 없었다. 컬럼으로 세운다.
         w.write(
             run_id, as_of, from_ts, scope, dataset, seed_run_id, attempt, verdict,
             stats_status, count, checksum if count else findings_checksum([]), fp,
-            started, started + dt.timedelta(minutes=4 + run_id),
+            started, started + dt.timedelta(minutes=4 + run_id), "SEED",
         )
         if stats_status == "COMPLETE":
             complete_runs.append(run_id)
