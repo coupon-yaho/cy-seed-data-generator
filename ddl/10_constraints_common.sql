@@ -63,6 +63,16 @@ ALTER TABLE verification_runs
   ADD CONSTRAINT ck_seed_run_id_corrupt_only
   CHECK (seed_run_id IS NULL OR dataset = 'CORRUPT');
 
+-- origin 이 두 값 밖이면 그 실행이 지표에서 조용히 사라진다. cy-be 의 되읽기가
+-- WHERE origin = 'BATCH' 로 좁히므로, 오타 난 값은 "판정이 없다"(NaN) 로 읽힌다.
+--
+-- 위치가 밀리는 경로가 실재한다 — 로더는 컬럼 목록 없이 LOAD DATA 로 넣는다.
+-- 15번째 자리가 한 칸 밀리면 엉뚱한 값이 origin 에 앉는데, 그때 이 CHECK 가 적재
+-- 시점에 즉시 잡는다. 없으면 varchar(6) 이 무엇이든 받고 관제에서만 티가 난다.
+ALTER TABLE verification_runs
+  ADD CONSTRAINT ck_verification_run_origin
+  CHECK (origin IN ('SEED', 'BATCH'));
+
 -- 퍼널 등식(issued + used + cancelled + expired = issued_total)이 조용히 깨지는 것을 막는다.
 -- 통계는 issued_total 을 COUNT(*) 로, 나머지 넷을 SUM(status = 'X') 로 센다 — status 가 네 값
 -- 밖이면 그 행이 분모에만 남아 대시보드에서 "발급률이 낮다" 로 보인다.
