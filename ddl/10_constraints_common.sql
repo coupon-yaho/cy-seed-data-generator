@@ -80,3 +80,18 @@ ALTER TABLE verification_runs
 ALTER TABLE issuances
   ADD CONSTRAINT ck_issuance_status
   CHECK (status IN ('ISSUED', 'USED', 'CANCELLED', 'EXPIRED'));
+
+-- 회차 상태가 세 값 밖으로 새는 것을 DB 제약으로 막는다.
+--
+-- cy-be 의 회차 상태 전이 스케줄러(CY-446)가 이 컬럼에 값을 쓰는 첫 코드다. 그 스케줄러는
+-- status='SCHEDULED' 인 회차만 열고 'OPEN' 인 회차만 닫는다 — 값이 그 집합 밖이면
+-- **회차가 영원히 안 열리는데 대기 지표도 그것을 못 센다.** 게이지가 0 이고 알림도 없다.
+--
+-- 위 ck_issuance_status 와 같은 종류의 방어다. 거기 적은 이유("값 집합 밖이면 그 행이
+-- 분모에만 남아 조용히 틀린다")가 여기서는 "조용히 안 열린다" 로 나타난다.
+--
+-- 시드가 심는 값은 SCHEDULED(현재 회차 3건)와 CLOSED(과거 회차)뿐이라 적재를 막지 않는다.
+-- OPEN 은 전이 스케줄러가 만든다.
+ALTER TABLE coupons
+  ADD CONSTRAINT ck_coupon_status
+  CHECK (status IN ('SCHEDULED', 'OPEN', 'CLOSED'));
