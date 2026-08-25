@@ -15,7 +15,7 @@ CREATE UNIQUE INDEX uk_template_open ON coupons (template_id, open_at);
 -- 수치와 재는 방법은 cy-be 의 docs/12-expire-lock-measurement.md 에 있다.
 --
 -- 여기(적재 후)에 두므로 300만 건 적재 성능은 그대로다.
--- cy-be 의 V11__issuance_status_expires_index.sql 과 짝이고, 이름·컬럼이 같아야
+-- cy-be 의 V2026082509__issuance_status_expires_index.sql 과 짝이고, 이름·컬럼이 같아야
 -- SchemaParityTest 가 통과한다.
 CREATE INDEX idx_issuance_status_expires ON issuances (status, expires_at);
 
@@ -58,7 +58,7 @@ CREATE UNIQUE INDEX uk_run_finding ON verification_findings (run_id, finding_typ
 CREATE UNIQUE INDEX uk_expected ON expected_findings (seed_run_id, finding_type, target_key);
 
 -- CLEAN 은 대조할 묶음이 없다. 불변식을 DB 제약으로 표현한다 —
--- 정의 원본은 cy-be 의 V7__verification_run_seed_run_id.sql 이다.
+-- 정의 원본은 cy-be 의 V2026082505__verification_run_seed_run_id.sql 이다.
 ALTER TABLE verification_runs
   ADD CONSTRAINT ck_seed_run_id_corrupt_only
   CHECK (seed_run_id IS NULL OR dataset = 'CORRUPT');
