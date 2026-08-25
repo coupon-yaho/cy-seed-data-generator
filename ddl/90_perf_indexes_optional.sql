@@ -27,6 +27,11 @@ CREATE INDEX idx_issuance_coupon_status ON issuances (coupon_id, status);
 --    인덱스이고, 위 것처럼 '빼 둔 것을 재서 승격' 한 것이 아니라 만료 배치를 만들다
 --    새로 필요해진 것이다. 근거는 docs/12 §5 의 실측(첫 청크 200,017행 → 1,001행)이다.
 
+-- 만료 배치 후보 조회(WHERE status='ISSUED' AND id > :afterId ORDER BY id LIMIT n)
+-- ⬆️ 10_constraints_common.sql 에 idx_issuance_status_id 로 있다. 위 둘과 같은 사정이다 —
+--    이 처방전에 원래 없던 인덱스이고 만료 배치를 만들다 새로 필요해졌다.
+--    실측 근거는 cy-be 의 V17__issuance_status_id_index.sql (16,999 → 999).
+
 -- Step 0 리플레이 정렬 (created_at, id). FK 인덱스는 issuance_id 까지만 커버한다
 CREATE INDEX idx_history_issuance ON issuance_histories (issuance_id, created_at);
 

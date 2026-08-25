@@ -95,3 +95,24 @@ ALTER TABLE issuances
 ALTER TABLE coupons
   ADD CONSTRAINT ck_coupon_status
   CHECK (status IN ('SCHEDULED', 'OPEN', 'CLOSED'));
+
+-- 만료 후보 조회가 누적된 EXPIRED 를 지나가지 않게 한다.
+--
+-- 만료 배치가 재고 행을 **먼저** 잠그도록 바뀌면서(cy-be), 잠글 행을 알려면 어느 회차를
+-- 건드릴지가 쓰기 전에 정해져 있어야 해서 청크마다 후보를 먼저 읽는다.
+--
+--   SELECT id, coupon_id FROM issuances
+--    WHERE status = 'ISSUED' AND expires_at < :asOf AND id > :afterId
+--    ORDER BY id LIMIT :limit
+--
+-- ORDER BY id 가 옵티마이저를 PK 로 몬다. 정렬을 피하려는 선택인데, 그러면 afterId 위쪽의
+-- 누적된 EXPIRED 를 전부 지나가며 filter 한다. 진도(afterId)는 JobInstance 안에서만 살아서
+-- 주기 실행은 언제나 afterId = 0 부터 시작하므로 **매 실행의 첫 청크가 그 비용을 낸다.**
+--
+-- 실측(MySQL 8.4 · 누적 EXPIRED 15,000 · 대상 ISSUED 5,000 · LIMIT 1,000, Handler_read_next):
+--   그대로(PK 스캔) 16,999 · FORCE INDEX(status, expires_at) 4,000 · 이 인덱스 999
+--
+-- 위 idx_issuance_status_expires · idx_issuance_updated_at 과 같은 사정이다 — 처방전에서
+-- 빼 두고 재서 승격한 것이 아니라 만료 배치를 만들다 새로 필요해졌고, 없으면 느린 것을
+-- 넘어 스텝 시한을 넘긴다.
+CREATE INDEX idx_issuance_status_id ON issuances (status, id);
