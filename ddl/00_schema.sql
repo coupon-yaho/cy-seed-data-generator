@@ -216,7 +216,8 @@ CREATE TABLE expected_findings (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;
 
 -- 대시보드가 읽을 "완결된 최신 통계 스냅샷". 정의 원본은 cy-be 의
--- V2026082507__latest_stats_run_view.sql 이고 어긋나면 SchemaParityTest 가 잡는다.
+-- V2026082508__latest_stats_run_view_scope.sql 이고(V2026082507 이 만든 것을
+-- CREATE OR REPLACE 로 덮는다) 어긋나면 SchemaParityTest 가 잡는다.
 --
 -- PRD 의 정의는 ORDER BY as_of DESC LIMIT 1 인데, 아래 write_verification_runs 가
 -- CLEAN 을 같은 as_of 에 attempt 1·2 로 심고 둘 다 COMPLETE 라 그것만으로는 비결정적이다.
