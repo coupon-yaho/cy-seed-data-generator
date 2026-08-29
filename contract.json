@@ -50,6 +50,11 @@
       "to": "ISSUED"
     },
     {
+      "from": "USED",
+      "event": "CANCEL_USE",
+      "to": "EXPIRED"
+    },
+    {
       "from": "ISSUED",
       "event": "CANCEL",
       "to": "CANCELLED"

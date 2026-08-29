@@ -100,13 +100,18 @@ EV_ISSUE, EV_USE, EV_CANCEL_USE, EV_CANCEL, EV_EXPIRE = (
 )
 
 # 합법 전이. (from_status, event) -> to_status. from_status None 은 신규 발급.
-LEGAL_TRANSITIONS: dict[tuple[str | None, str], str] = {
-    (None, EV_ISSUE): ISSUED,
-    (ISSUED, EV_USE): USED,
-    (USED, EV_CANCEL_USE): ISSUED,
-    (ISSUED, EV_CANCEL): CANCELLED,
-    (ISSUED, EV_EXPIRE): EXPIRED,
-}
+# ⚠️ **(from, event) → to 맵이 아니라 삼중항 목록이다.** CANCEL_USE 는 결과가 둘이라
+#    맵으로는 표현이 안 된다 — 만료 시각을 넘긴 뒤의 사용 취소는 ISSUED 가 아니라
+#    EXPIRED 로 간다(cy-be CouponStateMachine.cancelUse, 그리고 CouponCancelUseService
+#    가 그 갈래에서 재고까지 되돌린다). 맵으로 두면 그 정상 이력이 V4 오탐이 된다.
+LEGAL_TRANSITIONS: tuple[tuple[str | None, str, str], ...] = (
+    (None, EV_ISSUE, ISSUED),
+    (ISSUED, EV_USE, USED),
+    (USED, EV_CANCEL_USE, ISSUED),
+    (USED, EV_CANCEL_USE, EXPIRED),
+    (ISSUED, EV_CANCEL, CANCELLED),
+    (ISSUED, EV_EXPIRE, EXPIRED),
+)
 TERMINAL_STATES = {CANCELLED, EXPIRED}
 
 # 상태 분포 (PRD.md:316)

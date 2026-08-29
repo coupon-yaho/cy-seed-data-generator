@@ -20,7 +20,7 @@ ROW_CAP = 50_000
 
 def _legal_tuples() -> str:
     rows = []
-    for (frm, ev), to in C.LEGAL_TRANSITIONS.items():
+    for frm, ev, to in C.LEGAL_TRANSITIONS:
         f = "''" if frm is None else f"'{frm}'"
         rows.append(f"({f},'{ev}','{to}')")
     return ", ".join(rows)

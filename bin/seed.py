@@ -322,7 +322,7 @@ def do_contract(args) -> None:
         ),
         "legal_transitions": [
             {"from": frm, "event": ev, "to": to}
-            for (frm, ev), to in C.LEGAL_TRANSITIONS.items()
+            for frm, ev, to in C.LEGAL_TRANSITIONS
         ],
         "corruption": {
             "injections": C.CORRUPT_TOTAL,
