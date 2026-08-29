@@ -30,6 +30,16 @@ CREATE INDEX idx_issuance_status_expires ON issuances (status, expires_at);
 -- cy-be 의 V2026082511 과 짝이고, 이름·컬럼이 같아야 SchemaParityTest 가 통과한다.
 CREATE INDEX idx_issuance_updated_at ON issuances (updated_at, id);
 
+-- cy-be 가 이름을 붙여 만든 인덱스들. **FK 선언보다 먼저 만든다** —
+-- MySQL 은 FK 를 걸 때 쓸 수 있는 인덱스가 있으면 그것을 쓰고, 없으면 컬럼명으로
+-- 하나 만든다. 순서를 바꾸면 여기에만 자동 인덱스가 생겨 파리티가 그 자리를 잡는다.
+CREATE INDEX fk_issuances_member ON issuances (member_id);
+CREATE INDEX idx_issuances_coupon_id ON issuances (coupon_id, id);
+CREATE INDEX idx_issuance_histories_created_id
+    ON issuance_histories (created_at DESC, id DESC);
+CREATE INDEX idx_issuance_histories_issuance_created_id
+    ON issuance_histories (issuance_id, created_at DESC, id DESC);
+
 ALTER TABLE members             ADD FOREIGN KEY (membership_grade) REFERENCES grades (code);
 ALTER TABLE coupon_templates    ADD FOREIGN KEY (brand_id)   REFERENCES brands (id);
 ALTER TABLE coupons             ADD FOREIGN KEY (template_id) REFERENCES coupon_templates (id);
@@ -116,3 +126,47 @@ ALTER TABLE coupons
 -- 빼 두고 재서 승격한 것이 아니라 만료 배치를 만들다 새로 필요해졌고, 없으면 느린 것을
 -- 넘어 스텝 시한을 넘긴다.
 CREATE INDEX idx_issuance_status_id ON issuances (status, id);
+
+-- ── 오염이 안 건드리는 제약은 CLEAN·CORRUPT 공통이다 ────────────────────────
+--
+-- 판단 기준은 하나다 — **오염 700건 중 이 제약을 넘어야 하는 주입이 있는가.**
+-- seedgen/corrupt.py 를 전수로 봤을 때 아래 넷은 없다:
+--   total_quantity 를 만지는 주입 없음        → ck_coupon_stock_total_positive
+--   open_at·close_at 을 만지는 주입 없음      → ck_coupon_round_time_range
+--   활성 사용 2건을 심는 유형 없음            → uk_issuance_usages_active
+--       (유형 3 은 [(t1,t2),(t3,None)], 유형 7 은 [(t1,None)] — 둘 다 활성 1건이다)
+--   canceled_at < used_at 을 심는 유형 없음   → ck_issuance_usages_cancel_time
+--   order_id 는 사용마다 난수라 (issuance_id, order_id) 중복 없음
+--                                            → uk_issuance_usages_issuance_order
+--
+-- 필요 없는데 CORRUPT 에서 떼면, 오염과 무관한 사고가 CORRUPT 에서만 조용히 통과한다.
+
+ALTER TABLE issuance_usages
+    ADD CONSTRAINT uk_issuance_usages_issuance_order UNIQUE (issuance_id, order_id),
+    ADD CONSTRAINT uk_issuance_usages_active UNIQUE (active_issuance_id),
+    ADD CONSTRAINT ck_issuance_usages_cancel_time
+        CHECK (canceled_at IS NULL OR canceled_at >= used_at);
+
+ALTER TABLE coupon_stocks
+    ADD CONSTRAINT ck_coupon_stock_total_positive CHECK (total_quantity > 0);
+
+ALTER TABLE coupons
+    ADD CONSTRAINT ck_coupon_round_time_range CHECK (close_at > open_at);
+
+-- 멱등 레코드의 상태·대상 정합 — cy-be V7. 오염이 이 표를 안 건드린다.
+ALTER TABLE idempotency_records
+    ADD CONSTRAINT ck_idempotency_status_targets CHECK (
+        (
+            status = 'IN_PROGRESS'
+            AND member_id IS NULL
+            AND issuance_id IS NULL
+            AND response_body IS NULL
+        )
+        OR
+        (
+            status = 'DONE'
+            AND member_id IS NOT NULL
+            AND issuance_id IS NOT NULL
+            AND response_body IS NOT NULL
+        )
+    );

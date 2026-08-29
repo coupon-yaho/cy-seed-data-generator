@@ -14,3 +14,9 @@ CREATE UNIQUE INDEX uk_coupon_code ON issuances (code);
 ALTER TABLE coupon_stocks
   ADD CONSTRAINT ck_stock_range
   CHECK (active_count >= 0 AND active_count <= total_quantity);
+
+-- 재고 범위 — cy-be V3 이 ck_stock_range 와 같은 축을 자기 이름으로 한 겹 더 건다.
+-- 유형 1(+1)·3(-1)이 이 범위를 넘어야 하므로 CLEAN 에만 건다.
+ALTER TABLE coupon_stocks
+    ADD CONSTRAINT ck_coupon_stock_active_range
+        CHECK (active_count >= 0 AND active_count <= total_quantity);

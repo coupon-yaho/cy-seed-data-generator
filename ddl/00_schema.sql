@@ -37,15 +37,20 @@ CREATE TABLE coupon_templates (
   max_discount_amount   int,
   discount_amount       int,
   data_grant_mb         int,
-  min_order_amount      int,
+  -- min_order_amount 는 없다 — 주문 도메인이 없어 cy-be V2 가 뺐다.
   valid_days            int          NOT NULL,
-  nth_week              tinyint,
-  day_of_week           varchar(3),
-  start_time            time,
-  duration_hours        int,
+  -- 일정 넷은 NOT NULL — cy-be V13. 도메인이 요구하는 값을 DB 제약과 맞춘 것이다.
+  nth_week              tinyint      NOT NULL,
+  day_of_week           varchar(3)   NOT NULL,
+  start_time            time         NOT NULL,
+  duration_hours        int          NOT NULL,
   stock_per_occurrence  int          NOT NULL,
   eligible_grades_mask  tinyint      NOT NULL,
   active                boolean      NOT NULL DEFAULT true,
+  -- 감사 컬럼 — cy-be V14. 기본값 표현까지 같아야 파리티가 통과한다.
+  created_at            datetime(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  updated_at            datetime(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6)
+                                     ON UPDATE CURRENT_TIMESTAMP(6),
   PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;
 
@@ -65,6 +70,8 @@ CREATE TABLE coupons (
   open_at               datetime     NOT NULL,
   close_at              datetime     NOT NULL,
   status                varchar(20)  NOT NULL COMMENT 'SCHEDULED / OPEN / CLOSED',
+  -- 회차 생성 작업의 기준 시각 — cy-be V4. 감사 시각(created_at)과 뜻이 다르다.
+  generated_at          datetime(6)  NOT NULL,
   created_at            datetime(6)  NOT NULL,
   PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;
@@ -86,6 +93,8 @@ CREATE TABLE issuances (
   status        varchar(12) NOT NULL COMMENT 'ISSUED / USED / CANCELLED / EXPIRED',
   issued_at     datetime(6) NOT NULL,
   expires_at    datetime(6) NOT NULL COMMENT '만료 판정의 유일한 기준',
+  -- 도메인 발급 시각(issued_at)과 감사 시각을 가른다 — cy-be V5.
+  created_at    datetime(6) NOT NULL,
   updated_at    datetime(6) NOT NULL,
   PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;
@@ -105,17 +114,24 @@ CREATE TABLE issuance_histories (
 CREATE TABLE issuance_usages (
   id               bigint   NOT NULL AUTO_INCREMENT,
   issuance_id      bigint   NOT NULL,
-  order_id         bigint,
+  order_id         bigint   NOT NULL,
   discount_amount  int      NOT NULL,
   used_at          datetime(6) NOT NULL,
   canceled_at      datetime(6),
+  -- 사용 실적 감사 시각 — cy-be V7.
+  created_at       datetime(6) NOT NULL,
+  -- 활성 사용 하나만 허용하기 위한 생성 컬럼 — cy-be V8.
+  -- 유니크는 CLEAN 에서만 건다(11_constraints_clean.sql).
+  active_issuance_id bigint GENERATED ALWAYS AS (
+      CASE WHEN canceled_at IS NULL THEN issuance_id ELSE NULL END) STORED,
   PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE idempotency_records (
   idem_key      varchar(36) NOT NULL,
-  member_id     bigint      NOT NULL,
-  issuance_id   bigint      NOT NULL,
+  -- IN_PROGRESS 는 대상 검증 전에 만들어지므로 비어 있다 — cy-be V6.
+  member_id     bigint,
+  issuance_id   bigint,
   request_hash  char(64)    NOT NULL,
   status        varchar(12) NOT NULL COMMENT 'IN_PROGRESS / DONE',
   response_body text,

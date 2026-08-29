@@ -67,7 +67,9 @@ class Coupon:
             self.discount_rate, self.max_discount_amount, self.discount_amount,
             self.data_grant_mb, self.min_order_amount, self.valid_days,
             self.eligible_grades_mask, self.open_at, self.close_at, self.status,
-            self.created_at,
+            # generated_at — 회차를 만든 작업의 기준 시각. 시드는 감사 시각과 같게 둔다:
+            # 한 번에 만든 데이터라 "언제 만들기로 판단했나" 와 "언제 저장됐나" 가 같다.
+            self.created_at, self.created_at,
         )
 
 
@@ -212,12 +214,14 @@ def build_catalog(profile: C.Profile, as_of: dt.datetime) -> Catalog:
             (
                 i + 1, i + 1, f"{b.name} 브랜드데이", b.policy_type,
                 b.discount_rate, b.max_discount_amount, b.discount_amount,
-                b.data_grant_mb, b.min_order_amount,
+                b.data_grant_mb,
                 rng.randint(C.VALID_DAYS_MIN, C.VALID_DAYS_MAX),
                 b.nth_week, b.day_of_week, f"{b.start_hour:02d}:00:00",
                 b.duration_hours,
                 max(1, int(round((C.STOCK_MIN + C.STOCK_MAX) / 2 * stock_scale))),
                 b.mask, True,
+                # created_at · updated_at — cy-be V14. 카탈로그는 as_of 기준 한 번에 만든다.
+                as_of, as_of,
             )
         )
 

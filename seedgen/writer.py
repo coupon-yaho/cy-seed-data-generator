@@ -22,10 +22,13 @@ TABLES: dict[str, list[tuple[str, str]]] = {
         ("id", "int"), ("brand_id", "int"), ("name", "str"), ("policy_type", "str"),
         ("discount_rate", "int"), ("max_discount_amount", "int"),
         ("discount_amount", "int"), ("data_grant_mb", "int"),
-        ("min_order_amount", "int"), ("valid_days", "int"), ("nth_week", "int"),
+        # min_order_amount 는 없다 — cy-be V2 가 뺐다(주문 도메인 없음).
+        ("valid_days", "int"), ("nth_week", "int"),
         ("day_of_week", "str"), ("start_time", "time"), ("duration_hours", "int"),
         ("stock_per_occurrence", "int"), ("eligible_grades_mask", "int"),
         ("active", "bool"),
+        # 감사 컬럼 — cy-be V14. DEFAULT 가 있지만 LOAD DATA 는 위치로 채우므로 명시한다.
+        ("created_at", "dt6"), ("updated_at", "dt6"),
     ],
     "coupons": [
         ("id", "int"), ("template_id", "int"), ("brand_id", "int"), ("name", "str"),
@@ -33,7 +36,9 @@ TABLES: dict[str, list[tuple[str, str]]] = {
         ("max_discount_amount", "int"), ("discount_amount", "int"),
         ("data_grant_mb", "int"), ("min_order_amount", "int"), ("valid_days", "int"),
         ("eligible_grades_mask", "int"), ("open_at", "dt"), ("close_at", "dt"),
-        ("status", "str"), ("created_at", "dt6"),
+        ("status", "str"),
+        ("generated_at", "dt6"),   # cy-be V4 — 회차 생성 작업의 기준 시각
+        ("created_at", "dt6"),
     ],
     "coupon_stocks": [
         ("coupon_id", "int"), ("total_quantity", "int"), ("active_count", "int"),
@@ -47,7 +52,9 @@ TABLES: dict[str, list[tuple[str, str]]] = {
     "issuances": [
         ("id", "int"), ("coupon_id", "int"), ("member_id", "int"), ("code", "str"),
         ("issued_grade", "str"), ("status", "str"), ("issued_at", "dt6"),
-        ("expires_at", "dt6"), ("updated_at", "dt6"),
+        ("expires_at", "dt6"),
+        ("created_at", "dt6"),     # cy-be V5 — 감사 시각. 도메인 시각은 issued_at
+        ("updated_at", "dt6"),
     ],
     "issuance_histories": [
         ("id", "int"), ("issuance_id", "int"), ("event_type", "str"),
@@ -57,6 +64,7 @@ TABLES: dict[str, list[tuple[str, str]]] = {
     "issuance_usages": [
         ("id", "int"), ("issuance_id", "int"), ("order_id", "int"),
         ("discount_amount", "int"), ("used_at", "dt"), ("canceled_at", "dt"),
+        ("created_at", "dt6"),     # cy-be V7
     ],
     "idempotency_records": [
         ("idem_key", "str"), ("member_id", "int"), ("issuance_id", "int"),

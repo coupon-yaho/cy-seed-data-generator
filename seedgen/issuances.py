@@ -170,6 +170,7 @@ class IssuanceGenerator:
             self._discount(coupon, rng),
             used_at.replace(microsecond=0),
             canceled_at.replace(microsecond=0) if canceled_at else None,
+            used_at,   # created_at — cy-be V7. 사용 실적 감사 시각
         )
         self.totals.usages += 1
 
@@ -465,7 +466,10 @@ class IssuanceGenerator:
         updated_at = max(e[3] for e in events)
         self.w["issuances"].write(
             iid, coupon.id, member_id, encode_code(iid), issued_grade,
-            stored_status, issued_at, expires_at, updated_at,
+            # created_at — cy-be V5 가 도메인 발급 시각과 감사 시각을 갈랐다.
+            # 시드는 한 번에 만든 데이터라 둘이 같다. 다르게 두면 리플레이가 쓰는
+            # (created_at, id) 정렬이 issued_at 순서와 어긋나 판정이 흔들린다.
+            stored_status, issued_at, expires_at, issued_at, updated_at,
         )
         t = self.totals
         t.issuances += 1
@@ -503,7 +507,8 @@ class IssuanceGenerator:
         self._history(iid, C.EV_ISSUE, None, C.ISSUED, issued_at, rng)
         self.w["issuances"].write(
             iid, coupon.id, member_id, twin_code or encode_code(iid), issued_grade,
-            C.ISSUED, issued_at, expires_at, issued_at,
+            # created_at · updated_at — 둘 다 issued_at 이다(cy-be V5).
+            C.ISSUED, issued_at, expires_at, issued_at, issued_at,
         )
         self._track(iid, issued_at, C.ISSUED, 0)
         self.record(
@@ -526,7 +531,8 @@ class IssuanceGenerator:
         self._history(iid, C.EV_ISSUE, None, C.ISSUED, issued_at, rng)
         self.w["issuances"].write(
             iid, coupon.id, self.idmap.rank_to_id(rank), encode_code(iid), bad,
-            C.ISSUED, issued_at, expires_at, issued_at,
+            # created_at · updated_at — 둘 다 issued_at 이다(cy-be V5).
+            C.ISSUED, issued_at, expires_at, issued_at, issued_at,
         )
         self._track(iid, issued_at, C.ISSUED, 0)
         self.record(
@@ -554,8 +560,15 @@ class IssuanceGenerator:
                 )
                 if done else None
             )
+            # ⚠️ IN_PROGRESS 는 **대상이 비어 있어야 한다.** cy-be V6·V7 이
+            #    ck_idempotency_status_targets 로 그것을 DB 에서 못 박는다 —
+            #    처리 중인 레코드는 대상 검증 **전에** 만들어지므로 member_id·
+            #    issuance_id·response_body 가 아직 없다. 채워서 넣으면 적재가
+            #    3819 로 통째로 튕긴다(실측).
             w.write(
-                request_id, member_id, issuance_id,
+                request_id,
+                member_id if done else None,
+                issuance_id if done else None,
                 f"{salt:016x}{(salt ^ 0x5A5A5A5A5A5A5A5A):016x}".ljust(64, "0")[:64],
                 "DONE" if done else "IN_PROGRESS", body, at,
             )
