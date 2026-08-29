@@ -76,9 +76,11 @@ ALTER TABLE verification_runs
 -- origin 이 두 값 밖이면 그 실행이 지표에서 조용히 사라진다. cy-be 의 되읽기가
 -- WHERE origin = 'BATCH' 로 좁히므로, 오타 난 값은 "판정이 없다"(NaN) 로 읽힌다.
 --
--- 위치가 밀리는 경로가 실재한다 — 로더는 컬럼 목록 없이 LOAD DATA 로 넣는다.
--- 15번째 자리가 한 칸 밀리면 엉뚱한 값이 origin 에 앉는데, 그때 이 CHECK 가 적재
--- 시점에 즉시 잡는다. 없으면 varchar(6) 이 무엇이든 받고 관제에서만 티가 난다.
+-- 위치가 밀리는 경로가 실재한다. 로더는 컬럼 목록을 명시해 넣지만
+-- (seedgen/loader.py 의 load_statement 가 writer.TABLES 에서 만든다) 그 목록의 순서와
+-- TSV 필드 순서를 맞추는 것은 ShardWriter.write 에 넘기는 인자 순서뿐이다 — 생성기가
+-- 한 칸을 밀거나 빠뜨리면 엉뚱한 값이 origin 에 앉고, 그때 이 CHECK 가 적재 시점에
+-- 즉시 잡는다. 없으면 varchar(6) 이 무엇이든 받고 관제에서만 티가 난다.
 ALTER TABLE verification_runs
   ADD CONSTRAINT ck_verification_run_origin
   CHECK (origin IN ('SEED', 'BATCH'));

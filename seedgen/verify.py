@@ -143,14 +143,27 @@ def rules(as_of: str, dataset: str) -> list[tuple[str, str, bool]]:
                           ', ', t.event_type, '->', t.to_status)
             FROM (
                 SELECT h.id, h.issuance_id, h.event_type, h.from_status, h.to_status,
+                       h.created_at, i.expires_at,
                        LAG(h.to_status) OVER (PARTITION BY h.issuance_id
                                               ORDER BY h.created_at, h.id) prev
                 FROM issuance_histories h
+                JOIN issuances i ON i.id = h.issuance_id
                 WHERE h.created_at <= '{as_of}' AND {RANGE}
             ) t
             WHERE NOT (t.prev <=> t.from_status)
                OR (COALESCE(t.from_status,''), t.event_type, t.to_status)
                    NOT IN ({_legal_tuples()})
+               -- 결과가 둘인 전이는 **어느 쪽이었어야 하는지**까지 본다.
+               -- 전이표는 CANCEL_USE 의 ISSUED·EXPIRED 를 둘 다 담으므로, 그것만으로는
+               -- 런타임이 틀린 쪽을 써도 통과한다. 그때 상태와 재고가 함께 바뀌므로
+               -- V1 도 침묵해 세 축 어디에도 안 걸린다.
+               --
+               -- ⚠️ 결정론은 안 깨진다 — expires_at 도 created_at 도 저장된 값이다.
+               --    금지된 것은 **현재 시각**으로 갈래를 나누는 것이다.
+               --    cy-be 의 HistoryReplay.settledOutcome 과 같은 술어다.
+               OR (t.event_type = '{C.EV_CANCEL_USE}' AND t.prev = '{C.USED}'
+                   AND t.to_status <> CASE WHEN t.created_at > t.expires_at
+                                           THEN '{C.EXPIRED}' ELSE '{C.ISSUED}' END)
         """, True),
         # V5 사용 실적 정합 — 리플레이 ↔ usages (issuances.status 를 읽지 않는다)
         (C.V5, f"""

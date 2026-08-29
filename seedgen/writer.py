@@ -176,6 +176,19 @@ class ShardWriter:
             self.paths.append(self._path)
 
     def write(self, *values) -> None:
+        """한 행을 쓴다.
+
+        인자 수가 TABLES[table] 의 컬럼 수와 **정확히** 같아야 한다. 로더가 컬럼
+        목록을 명시해 넣으므로(loader.load_statement) 순서를 맞추는 축은 여기 넘기는
+        인자 순서 하나뿐인데, **모자란 쪽은 아무것도 안 터진다** — join 이 짧은 줄을
+        쓰고 LOAD DATA 는 남은 컬럼에 기본값을 채운 뒤 warning 만 남긴다. 넘치는 쪽은
+        kinds[i] 가 IndexError 를 던져 어차피 걸리니, 잡아야 하는 것은 모자란 쪽이다.
+        컬럼을 하나 늘린 날 콜사이트 하나를 빠뜨리는 것이 실제 경로다.
+        """
+        if len(values) != len(self.kinds):
+            raise ValueError(
+                f"{self.table}: {len(self.kinds)}개 컬럼인데 {len(values)}개를 받았습니다"
+            )
         if self._fh is None:
             self._open()
         kinds = self.kinds
