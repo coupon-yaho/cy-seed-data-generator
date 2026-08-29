@@ -320,6 +320,24 @@ def do_contract(args) -> None:
             "(coupon_id, code) 중복 그룹에서 MIN(id) 를 제외한 각 행 1건. "
             "target_key 는 위반 행의 (coupon_id, member_id)."
         ),
+        # **결과가 둘인 전이는 어느 쪽이었어야 하는지까지 계약이 정한다.**
+        # 삼중항 표만으로는 USED-CANCEL_USE->ISSUED 와 ->EXPIRED 가 **둘 다 합법**이라,
+        # 런타임이 틀린 쪽을 써도 V4 가 침묵한다. 그때 서비스가 상태와 재고를 함께 바꾸므로
+        # V3·V1 도 침묵한다 — 세 축 어디에도 안 걸린다.
+        # 한때 이 규칙이 cy-be 의 HistoryReplay.settledOutcome 과 seedgen/verify.py 두
+        # **코드에만** 있었다. 계약에 없으면 한쪽을 되돌려도 사본 검사가 전부 초록이고
+        # 매니페스트만 조용히 갈린다(CY-744 3차 리뷰).
+        "settled_outcome": {
+            "event": C.EV_CANCEL_USE,
+            "from": C.USED,
+            "rule": f"created_at > expires_at ? {C.EXPIRED} : {C.ISSUED}",
+            # 시각이 둘 다 **저장된 값**이라 결정론이 안 깨진다. 금지된 것은 현재 시각으로
+            # 갈래를 나누는 것이다.
+            "deterministic": True,
+            # expires_at 을 못 읽는 행은 **양쪽 구현 모두 판정하지 않는다.** SQL 은
+            # NULL 비교가 CASE 의 ELSE 를 타 조용히 ISSUED 를 확정하므로 명시적으로 뺀다.
+            "null_expires_at": "판정하지 않는다",
+        },
         "legal_transitions": [
             {"from": frm, "event": ev, "to": to}
             for frm, ev, to in C.LEGAL_TRANSITIONS
@@ -359,7 +377,12 @@ def do_contract(args) -> None:
         "not_verified": [
             "coupon_templates.stock_per_occurrence ↔ coupon_stocks.total_quantity 불일치",
             "만료 누락 (expires_at < asOf 인데 status=ISSUED) — 별도 관측 지표",
-            "고아 이력 — V4 가 전이 연쇄로 잡는다",
+            # ⚠️ 한때 "V4 가 전이 연쇄로 잡는다" 였는데 **두 구현 다 안 잡는다** —
+            #    리플레이 질의가 INNER JOIN issuances 라 고아 이력은 입력에 안 들어온다
+            #    (cy-be ReplayHistoryJdbcAdapter · seedgen/verify.py 둘 다). 발생 자체를
+            #    FK 가 막는다(10_constraints_common.sql). 계약이 "잡는다" 라고 적어 두면
+            #    별도 규칙을 만들 이유가 없다고 읽혀 **아무도 안 보는 축**이 된다.
+            "고아 이력 — 검증하지 않는다. FK 가 발생을 막고, 리플레이는 INNER JOIN 이라 입력에서 빠진다",
             "close_at 은 완판돼도 갱신하지 않는다",
             "CLOSED 회차의 잔여재고 증가",
             "스냅샷 컬럼 (name/policy/discount/mask/issued_grade)",

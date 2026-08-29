@@ -161,7 +161,15 @@ def rules(as_of: str, dataset: str) -> list[tuple[str, str, bool]]:
                -- ⚠️ 결정론은 안 깨진다 — expires_at 도 created_at 도 저장된 값이다.
                --    금지된 것은 **현재 시각**으로 갈래를 나누는 것이다.
                --    cy-be 의 HistoryReplay.settledOutcome 과 같은 술어다.
+               --
+               -- ⚠️ **expires_at 이 NULL 이면 판정하지 않는다.** 이 절이 없으면
+               --    created_at > NULL 이 NULL 이라 CASE 가 ELSE 를 타 **조용히 ISSUED 를
+               --    기대값으로 확정**한다 — 못 읽은 값으로 위반을 선언하는 셈이다.
+               --    cy-be 의 settledOutcome 은 그 경우 빈 값을 돌려주므로, 안 빼면
+               --    두 구현의 답이 갈린다(CY-744 3차 리뷰). 지금은 NOT NULL + INNER JOIN
+               --    이라 도달 불가지만, 어느 쪽이 LEFT JOIN 으로 바뀌는 날 갈린다.
                OR (t.event_type = '{C.EV_CANCEL_USE}' AND t.prev = '{C.USED}'
+                   AND t.expires_at IS NOT NULL
                    AND t.to_status <> CASE WHEN t.created_at > t.expires_at
                                            THEN '{C.EXPIRED}' ELSE '{C.ISSUED}' END)
         """, True),

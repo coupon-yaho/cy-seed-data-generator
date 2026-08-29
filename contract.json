@@ -33,6 +33,13 @@
     "active_usage": "used_at <= asOf AND (canceled_at IS NULL OR canceled_at > asOf)"
   },
   "v2_rule": "(coupon_id, member_id) 중복 그룹당 1건 + (coupon_id, code) 중복 그룹에서 MIN(id) 를 제외한 각 행 1건. target_key 는 위반 행의 (coupon_id, member_id).",
+  "settled_outcome": {
+    "event": "CANCEL_USE",
+    "from": "USED",
+    "rule": "created_at > expires_at ? EXPIRED : ISSUED",
+    "deterministic": true,
+    "null_expires_at": "판정하지 않는다"
+  },
   "legal_transitions": [
     {
       "from": null,
@@ -195,7 +202,7 @@
   "not_verified": [
     "coupon_templates.stock_per_occurrence ↔ coupon_stocks.total_quantity 불일치",
     "만료 누락 (expires_at < asOf 인데 status=ISSUED) — 별도 관측 지표",
-    "고아 이력 — V4 가 전이 연쇄로 잡는다",
+    "고아 이력 — 검증하지 않는다. FK 가 발생을 막고, 리플레이는 INNER JOIN 이라 입력에서 빠진다",
     "close_at 은 완판돼도 갱신하지 않는다",
     "CLOSED 회차의 잔여재고 증가",
     "스냅샷 컬럼 (name/policy/discount/mask/issued_grade)"
