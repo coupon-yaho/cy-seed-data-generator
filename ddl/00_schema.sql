@@ -32,11 +32,10 @@ CREATE TABLE coupon_templates (
   id                    bigint       NOT NULL AUTO_INCREMENT,
   brand_id              bigint       NOT NULL,
   name                  varchar(100) NOT NULL,
-  policy_type           varchar(20)  NOT NULL COMMENT 'PERCENT_CAPPED / FIXED_AMOUNT / DATA_GRANT',
+  policy_type           varchar(20)  NOT NULL COMMENT 'PERCENT_CAPPED / FIXED_AMOUNT',
   discount_rate         int,
   max_discount_amount   int,
   discount_amount       int,
-  data_grant_mb         int,
   -- min_order_amount 는 없다 — 주문 도메인이 없어 cy-be V2 가 뺐다.
   valid_days            int          NOT NULL,
   -- 일정 넷은 NOT NULL — cy-be V13. 도메인이 요구하는 값을 DB 제약과 맞춘 것이다.
@@ -59,11 +58,10 @@ CREATE TABLE coupons (
   template_id           bigint       NOT NULL,
   brand_id              bigint       NOT NULL COMMENT '역정규화',
   name                  varchar(100) NOT NULL COMMENT '스냅샷',
-  policy_type           varchar(20)  NOT NULL COMMENT '스냅샷',
+  policy_type           varchar(20)  NOT NULL COMMENT 'PERCENT_CAPPED / FIXED_AMOUNT',
   discount_rate         int,
   max_discount_amount   int,
   discount_amount       int,
-  data_grant_mb         int,
   min_order_amount      int          COMMENT '스냅샷',
   valid_days            int          NOT NULL,
   eligible_grades_mask  tinyint      NOT NULL COMMENT '스냅샷',
@@ -124,6 +122,13 @@ CREATE TABLE issuance_usages (
   -- 유니크는 CLEAN 에서만 건다(11_constraints_clean.sql).
   active_issuance_id bigint GENERATED ALWAYS AS (
       CASE WHEN canceled_at IS NULL THEN issuance_id ELSE NULL END) STORED,
+  PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;
+
+-- 쿠폰 사용 요청의 주문번호 시퀀스 — cy-be V16.
+CREATE TABLE coupon_order_numbers (
+  id          bigint      NOT NULL AUTO_INCREMENT,
+  created_at  datetime(6) NOT NULL,
   PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;
 

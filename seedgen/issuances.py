@@ -181,9 +181,9 @@ class IssuanceGenerator:
             order = rng.randint(floor, floor * 5)
             return min(order * (coupon.discount_rate or 0) // 100,
                        coupon.max_discount_amount or 10**9)
-        if coupon.policy_type == C.FIXED_AMOUNT:
-            return coupon.discount_amount or 0
-        return 0  # DATA_GRANT — 금액 할인이 아니다
+        # FIXED_AMOUNT. 남은 정책이 둘뿐이라 else 로 닫는다 — 새 정책이 생기면
+        # 여기서 조용히 정액으로 계산되는 대신 드러나야 하므로, 그때 분기를 다시 가른다.
+        return coupon.discount_amount or 0
 
     def _offer_idem(self, at, request_id, issuance_id, member_id, rng):
         """가장 최근 상태변경 요청 N건만 idempotency_records 로 남긴다.

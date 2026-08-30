@@ -37,7 +37,15 @@ DOW = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]
 
 PERCENT_CAPPED = "PERCENT_CAPPED"
 FIXED_AMOUNT = "FIXED_AMOUNT"
-DATA_GRANT = "DATA_GRANT"
+# DATA_GRANT 는 없앴다 — cy-be 가 지원한 적이 없다. 도메인 enum
+# (core.coupontemplate.domain.CouponPolicyType)에 그 값이 없고 할인 계산 switch 에도
+# 케이스가 없어서, 이 시드가 만든 DATA_GRANT 회차는 쿠폰 API 가 읽는 순간 터졌다.
+# CY-589 가 관리자 enum·DB 제약까지 두 종류로 맞추면서 시드도 따라간다.
+#
+# 대체 정책을 FIXED_AMOUNT 로 고른 것은 임의가 아니다 — issuances._discount 가
+# PERCENT_CAPPED 에서만 rng.randint 를 부른다. FIXED_AMOUNT 와 DATA_GRANT 는 둘 다
+# 난수를 안 쓰므로, 이 교체는 **난수 스트림을 건드리지 않는다.** 그래서 같은 시드로
+# 다시 깔면 id·선택이 전부 그대로이고 오염 매니페스트(800행)가 보존된다.
 
 
 @dataclass(frozen=True)
@@ -53,7 +61,6 @@ class BrandSpec:
     discount_rate: int | None = None
     max_discount_amount: int | None = None
     discount_amount: int | None = None
-    data_grant_mb: int | None = None
     min_order_amount: int = 0
     duration_hours: int = 6
 
@@ -75,12 +82,12 @@ BRANDS: list[BrandSpec] = [
               discount_rate=25, max_discount_amount=30000, min_order_amount=40000),
     BrandSpec("뷰티랩", "뷰티", 3, "WED", 16, PERCENT_CAPPED, MASK_SILVER_UP,
               discount_rate=30, max_discount_amount=24000, min_order_amount=20000),
-    BrandSpec("딜리버리고", "배달", 3, "FRI", 17, DATA_GRANT, MASK_ALL,
-              data_grant_mb=1024),
+    BrandSpec("딜리버리고", "배달", 3, "FRI", 17, FIXED_AMOUNT, MASK_ALL,
+              discount_amount=3000),
     BrandSpec("트래블온", "여행", 4, "TUE", 13, FIXED_AMOUNT, MASK_GOLD_UP,
               discount_amount=50000, min_order_amount=300000),
-    BrandSpec("게임패스", "게임", 4, "THU", 20, DATA_GRANT, MASK_ALL,
-              data_grant_mb=2048),
+    BrandSpec("게임패스", "게임", 4, "THU", 20, FIXED_AMOUNT, MASK_ALL,
+              discount_amount=5000),
     BrandSpec("헬스클럽", "피트니스", 4, "FRI", 7, PERCENT_CAPPED, MASK_VIP,
               discount_rate=40, max_discount_amount=60000, min_order_amount=100000),
 ]

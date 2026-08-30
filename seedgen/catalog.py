@@ -44,7 +44,6 @@ class Coupon:
     discount_rate: int | None
     max_discount_amount: int | None
     discount_amount: int | None
-    data_grant_mb: int | None
     min_order_amount: int
     valid_days: int
     eligible_grades_mask: int
@@ -65,7 +64,7 @@ class Coupon:
         return (
             self.id, self.template_id, self.brand_id, self.name, self.policy_type,
             self.discount_rate, self.max_discount_amount, self.discount_amount,
-            self.data_grant_mb, self.min_order_amount, self.valid_days,
+            self.min_order_amount, self.valid_days,
             self.eligible_grades_mask, self.open_at, self.close_at, self.status,
             # generated_at — 회차를 만든 작업의 기준 시각. 시드는 감사 시각과 같게 둔다:
             # 한 번에 만든 데이터라 "언제 만들기로 판단했나" 와 "언제 저장됐나" 가 같다.
@@ -214,7 +213,6 @@ def build_catalog(profile: C.Profile, as_of: dt.datetime) -> Catalog:
             (
                 i + 1, i + 1, f"{b.name} 브랜드데이", b.policy_type,
                 b.discount_rate, b.max_discount_amount, b.discount_amount,
-                b.data_grant_mb,
                 rng.randint(C.VALID_DAYS_MIN, C.VALID_DAYS_MAX),
                 b.nth_week, b.day_of_week, f"{b.start_hour:02d}:00:00",
                 b.duration_hours,
@@ -248,7 +246,7 @@ def build_catalog(profile: C.Profile, as_of: dt.datetime) -> Catalog:
                     name=f"{b.name} 브랜드데이 {open_at:%Y-%m}",
                     policy_type=b.policy_type, discount_rate=b.discount_rate,
                     max_discount_amount=b.max_discount_amount,
-                    discount_amount=b.discount_amount, data_grant_mb=b.data_grant_mb,
+                    discount_amount=b.discount_amount,
                     min_order_amount=b.min_order_amount, valid_days=valid_days,
                     eligible_grades_mask=b.mask, open_at=open_at, close_at=close_at,
                     status="CLOSED", created_at=open_at - dt.timedelta(days=1),
@@ -269,7 +267,7 @@ def build_catalog(profile: C.Profile, as_of: dt.datetime) -> Catalog:
                 name=f"{b.name} 브랜드데이 {open_at:%Y-%m} (예정)",
                 policy_type=b.policy_type, discount_rate=b.discount_rate,
                 max_discount_amount=b.max_discount_amount,
-                discount_amount=b.discount_amount, data_grant_mb=b.data_grant_mb,
+                discount_amount=b.discount_amount,
                 min_order_amount=b.min_order_amount,
                 valid_days=rng.randint(C.VALID_DAYS_MIN, C.VALID_DAYS_MAX),
                 eligible_grades_mask=b.mask, open_at=open_at, close_at=close_at,

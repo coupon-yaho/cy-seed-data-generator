@@ -4,6 +4,15 @@
 CREATE UNIQUE INDEX uk_email_hash  ON members  (email_hash);
 CREATE UNIQUE INDEX uk_template_open ON coupons (template_id, open_at);
 
+-- 지원 정책은 할인율·정액 두 종류뿐이다 — cy-be V17·V18.
+ALTER TABLE coupon_templates
+  ADD CONSTRAINT ck_coupon_templates_policy_type
+  CHECK (policy_type IN ('PERCENT_CAPPED', 'FIXED_AMOUNT'));
+
+ALTER TABLE coupons
+  ADD CONSTRAINT ck_coupons_policy_type
+  CHECK (policy_type IN ('PERCENT_CAPPED', 'FIXED_AMOUNT'));
+
 -- 보조 인덱스 중 이것만 기본으로 건다. 90_perf_indexes_optional.sql 에서 승격한 것이다.
 --
 -- 만료 배치가 없으면 이 인덱스도 없어도 된다. 그런데 만료 배치는 대상을 찾으려고
