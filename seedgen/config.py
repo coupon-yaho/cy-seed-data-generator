@@ -62,13 +62,20 @@ class BrandSpec:
     max_discount_amount: int | None = None
     discount_amount: int | None = None
     min_order_amount: int = 0
+    # ⚠️ start_hour + duration_hours 는 **23 이하**여야 한다. cy-be 의
+    #    CouponTemplate.validateSchedule 이 start.plusHours(d).isAfter(start) 를 요구하는데
+    #    LocalTime 은 자정에서 되감기므로 24:00 정각도 거절된다. 넘기면 그 템플릿이 낀
+    #    /api/v1/brand-days 응답 전체가 500 이 된다 — 매퍼가 활성 템플릿을 한 번에
+    #    스트림으로 접어서 한 행만 나빠도 나머지가 다 죽는다.
     duration_hours: int = 6
 
 
 BRANDS: list[BrandSpec] = [
     BrandSpec("모카빈", "카페", 1, "TUE", 14, PERCENT_CAPPED, MASK_ALL,
               discount_rate=20, max_discount_amount=20000, min_order_amount=10000),
-    BrandSpec("씨네플러스", "영화", 1, "THU", 18, FIXED_AMOUNT, MASK_ALL,
+    # 18시 시작이라 6시간이면 자정에 닿는다 — cy-be CouponTemplate.validateSchedule 이
+    # start+duration 이 시작 시각보다 **뒤**여야 한다고 요구하므로 24:00 도 거절이다.
+    BrandSpec("씨네플러스", "영화", 1, "THU", 18, FIXED_AMOUNT, MASK_ALL, duration_hours=5,
               discount_amount=5000, min_order_amount=12000),
     BrandSpec("버거하우스", "외식", 1, "FRI", 11, PERCENT_CAPPED, MASK_ALL,
               discount_rate=15, max_discount_amount=9000, min_order_amount=8000),
@@ -76,7 +83,7 @@ BRANDS: list[BrandSpec] = [
               discount_amount=8000, min_order_amount=30000),
     BrandSpec("북스토리", "서점", 2, "WED", 15, PERCENT_CAPPED, MASK_ALL,
               discount_rate=10, max_discount_amount=5000, min_order_amount=15000),
-    BrandSpec("필름아레나", "영화", 2, "FRI", 19, FIXED_AMOUNT, MASK_GOLD_UP,
+    BrandSpec("필름아레나", "영화", 2, "FRI", 19, FIXED_AMOUNT, MASK_GOLD_UP, duration_hours=4,
               discount_amount=7000, min_order_amount=14000),
     BrandSpec("스포츠존", "스포츠", 3, "MON", 12, PERCENT_CAPPED, MASK_ALL,
               discount_rate=25, max_discount_amount=30000, min_order_amount=40000),
@@ -86,7 +93,7 @@ BRANDS: list[BrandSpec] = [
               discount_amount=3000),
     BrandSpec("트래블온", "여행", 4, "TUE", 13, FIXED_AMOUNT, MASK_GOLD_UP,
               discount_amount=50000, min_order_amount=300000),
-    BrandSpec("게임패스", "게임", 4, "THU", 20, FIXED_AMOUNT, MASK_ALL,
+    BrandSpec("게임패스", "게임", 4, "THU", 20, FIXED_AMOUNT, MASK_ALL, duration_hours=3,
               discount_amount=5000),
     BrandSpec("헬스클럽", "피트니스", 4, "FRI", 7, PERCENT_CAPPED, MASK_VIP,
               discount_rate=40, max_discount_amount=60000, min_order_amount=100000),
