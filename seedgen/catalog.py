@@ -257,10 +257,20 @@ def build_catalog(profile: C.Profile, as_of: dt.datetime) -> Catalog:
             next_id += 1
 
     # ── 현재 회차 3건: open_at = 시드 실행 시각 + 5분 (PRD.md:276-279)
+    # **회차끼리 시간이 겹치면 안 된다.** cy-be 의 existsOverlappingSchedule 이
+    # (open_at < 상대 close_at AND close_at > 상대 open_at) 인 SCHEDULED·OPEN 회차를
+    # 거절한다 — 브랜드데이는 한 번에 하나만 돈다는 제품 규칙이다.
+    # 예전에는 셋 다 as_of + 5분으로 찍어 창이 완전히 같았고, 그러면 앱이 절대 만들지
+    # 않을 상태(동시에 열린 회차 셋)를 시드가 만들어 냈다. 이력 144건은 원래 안 겹친다 —
+    # 이 블록만 규칙 밖이었다.
+    cursor = (as_of + dt.timedelta(minutes=5)).replace(microsecond=0)
     for bi, stock in C.CURRENT_COUPONS:
         b = C.BRANDS[bi]
-        open_at = (as_of + dt.timedelta(minutes=5)).replace(microsecond=0)
+        open_at = cursor
         close_at = open_at + dt.timedelta(hours=b.duration_hours)
+        # 다음 회차는 이 회차가 닫힌 뒤에 연다. 경계가 같으면
+        # open_at < close_at 조건에 안 걸리므로 붙여도 된다.
+        cursor = close_at
         coupons.append(
             Coupon(
                 id=next_id, template_id=bi + 1, brand_id=bi + 1,
