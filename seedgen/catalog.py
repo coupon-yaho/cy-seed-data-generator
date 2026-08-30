@@ -263,42 +263,55 @@ def build_catalog(profile: C.Profile, as_of: dt.datetime) -> Catalog:
     # 예전에는 셋 다 as_of + 5분으로 찍어 창이 완전히 같았고, 그러면 앱이 절대 만들지
     # 않을 상태(동시에 열린 회차 셋)를 시드가 만들어 냈다. 이력 144건은 원래 안 겹친다 —
     # 이 블록만 규칙 밖이었다.
-    # **앞으로 UPCOMING_DAYS 치를 계속 이어 붙인다.** 셋만 만들면 시드 실행 시각으로부터
+    # ── 현재 회차 3건: open_at = 시드 실행 시각 + 5분 (PRD.md:276-279)
+    # **회차끼리 시간이 겹치면 안 된다.** cy-be 의 existsOverlappingSchedule 이
+    # (open_at < 상대 close_at AND close_at > 상대 open_at) 인 SCHEDULED·OPEN 회차를
+    # 거절한다 — 브랜드데이는 한 번에 하나만 돈다는 제품 규칙이다.
+    #
+    # 그리고 **그 뒤로 UPCOMING_DAYS 치를 더 만든다.** 셋만 만들면 시드 실행 시각으로부터
     # 반나절이면 마지막이 닫히고 그 뒤로 열린 회차가 없다 — 하루 뒤에 화면을 켜면 발급을
     # 눌러 볼 대상이 하나도 없다. 시연·수동 테스트가 시드 시각에 묶이는 자리였다.
-    #
-    # ⚠️ **자정을 넘기면 안 된다.** 이어 붙이기만 하면 20시에 시작한 6시간짜리가 다음 날
-    #    새벽 2시에 닫힌다. cy-be 의 회차는 하루 안에서 열고 닫히는 것이 전제라,
-    #    넘어갈 자리에서는 다음 날 00시로 커서를 옮긴다. (verify.py 의 도메인 규칙 검사가
-    #    DATE(open_at) <> DATE(close_at) 를 잡는다.)
-    def _upcoming() -> list[tuple[int, int]]:
-        plan = list(C.CURRENT_COUPONS)
-        if C.UPCOMING_DAYS <= 0:
-            return plan
-        # 앞의 셋에 쓴 브랜드 다음부터 돌린다 — 같은 브랜드가 연달아 서지 않게.
-        start = (C.CURRENT_COUPONS[-1][0] + 1) if C.CURRENT_COUPONS else 0
-        # 하루에 네 회차(6+6+6+5)면 23시간이 덮인다. 넉넉히 잡아 두고 아래 루프가
-        # 시각으로 끊는다 — 개수가 아니라 **언제까지** 가 기준이다.
-        for k in range(C.UPCOMING_DAYS * 5):
-            plan.append(((start + k) % len(C.BRANDS), C.UPCOMING_STOCK))
-        return plan
+    upcoming: list[tuple[dt.datetime, int, int]] = []
 
-    horizon = as_of + dt.timedelta(days=C.UPCOMING_DAYS)
     cursor = (as_of + dt.timedelta(minutes=5)).replace(microsecond=0)
-    for idx, (bi, stock) in enumerate(_upcoming()):
-        if idx >= len(C.CURRENT_COUPONS) and cursor >= horizon:
-            break
+    for bi, stock in C.CURRENT_COUPONS:
         b = C.BRANDS[bi]
-        open_at = cursor
-        close_at = open_at + dt.timedelta(hours=b.duration_hours)
-        if close_at.date() != open_at.date():
-            # 자정을 넘긴다 — 다음 날 00시부터 다시 연다.
-            open_at = (open_at + dt.timedelta(days=1)).replace(
+        # ⚠️ **이 셋만 자정을 넘길 수 있다.** 시드 실행 시각에서 이어 붙이므로, 저녁에
+        #    돌리면 뒤쪽 회차가 다음 날 새벽에 닫힌다. 회차는 하루 안에서 열고 닫히는 것이
+        #    전제라(verify.py 의 도메인 규칙 검사), 넘어갈 자리는 다음 날 00시로 옮긴다.
+        #    아래 UPCOMING 쪽은 브랜드 자기 시각을 쓰므로 이 문제가 아예 안 생긴다.
+        if (cursor + dt.timedelta(hours=b.duration_hours)).date() != cursor.date():
+            cursor = (cursor + dt.timedelta(days=1)).replace(
                 hour=0, minute=0, second=0, microsecond=0)
-            close_at = open_at + dt.timedelta(hours=b.duration_hours)
+        upcoming.append((cursor, bi, stock))
         # 다음 회차는 이 회차가 닫힌 뒤에 연다. 경계가 같으면
         # open_at < close_at 조건에 안 걸리므로 붙여도 된다.
-        cursor = close_at
+        cursor = cursor + dt.timedelta(hours=b.duration_hours)
+
+    # **다음 날부터는 브랜드 자기 시각에 연다.** 이어 붙이기로 채우면 하루가 회차로 꽉 차서
+    # 제품의 모양이 아니게 되고, 20시에 시작한 6시간짜리가 자정을 넘는 문제도 생긴다.
+    # 템플릿 시작 시각을 그대로 쓰면 둘 다 안 생긴다 — 브랜드 열둘의 start_hour + duration 이
+    # 전부 23시 이전에 닫힌다(config.BRANDS 가 그렇게 맞춰져 있다).
+    rotation = (C.CURRENT_COUPONS[-1][0] + 1) if C.CURRENT_COUPONS else 0
+    for day in range(1, C.UPCOMING_DAYS + 1):
+        base = (as_of + dt.timedelta(days=day)).date()
+        placed: list[tuple[dt.datetime, dt.datetime]] = []
+        for _ in range(len(C.BRANDS)):
+            if len(placed) >= C.UPCOMING_PER_DAY:
+                break
+            bi = rotation % len(C.BRANDS)
+            rotation += 1
+            b = C.BRANDS[bi]
+            open_at = dt.datetime(base.year, base.month, base.day, b.start_hour)
+            close_at = open_at + dt.timedelta(hours=b.duration_hours)
+            if any(open_at < c and close_at > o for o, c in placed):
+                continue  # 같은 날 이미 놓은 회차와 겹친다 — 다음 브랜드로
+            placed.append((open_at, close_at))
+            upcoming.append((open_at, bi, C.UPCOMING_STOCK))
+
+    for open_at, bi, stock in upcoming:
+        b = C.BRANDS[bi]
+        close_at = open_at + dt.timedelta(hours=b.duration_hours)
         coupons.append(
             Coupon(
                 id=next_id, template_id=bi + 1, brand_id=bi + 1,
