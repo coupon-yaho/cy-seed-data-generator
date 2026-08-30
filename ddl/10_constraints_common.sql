@@ -4,10 +4,27 @@
 CREATE UNIQUE INDEX uk_email_hash  ON members  (email_hash);
 CREATE UNIQUE INDEX uk_template_open ON coupons (template_id, open_at);
 
+-- V2 정의 목록 조회 전용 — cy-be V2026082903.
+-- 질의가 issuance_engine_version = 'V2' AND status IN (...) AND close_at > :asOf 라
+-- 세 컬럼에 인덱스가 없으면 coupons 를 전체 훑는다.
+--
+-- ⚠️ 컬럼 순서를 바꾸지 말 것. 등가 조건 둘이 앞, 범위 조건(close_at)이 뒤다 —
+--    범위를 앞에 두면 그 뒤 컬럼으로 인덱스를 못 좁힌다. 대조도 이 순서를 본다.
+CREATE INDEX ix_coupons_v2_definition ON coupons (issuance_engine_version, status, close_at);
+
 -- 지원 정책은 할인율·정액 두 종류뿐이다 — cy-be V17·V18.
 ALTER TABLE coupon_templates
   ADD CONSTRAINT ck_coupon_templates_policy_type
   CHECK (policy_type IN ('PERCENT_CAPPED', 'FIXED_AMOUNT'));
+
+-- 지원 엔진은 V1·V2 뿐이다 — cy-be V2026082801. NULL 은 하위 호환 갈래로 허용한다.
+--
+-- ⚠️ 11_clean 이 아니라 여기다. cy-be 스키마에는 항상 있으므로 한쪽에만 넣으면
+--    그쪽이 아닌 데이터셋에서 CHECK 축이 갈린다.
+ALTER TABLE coupons
+  ADD CONSTRAINT ck_coupon_issuance_engine_version
+  CHECK (issuance_engine_version IS NULL
+      OR issuance_engine_version IN ('V1', 'V2'));
 
 ALTER TABLE coupons
   ADD CONSTRAINT ck_coupons_policy_type

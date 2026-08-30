@@ -71,6 +71,16 @@ CREATE TABLE coupons (
   -- 회차 생성 작업의 기준 시각 — cy-be V4. 감사 시각(created_at)과 뜻이 다르다.
   generated_at          datetime(6)  NOT NULL,
   created_at            datetime(6)  NOT NULL,
+  -- 회차별 발급 엔진 — cy-be V2026082801. NULL 은 하위 호환으로 V1 로 판정한다.
+  --
+  -- ⚠️ 자리가 뜻을 갖는다. cy-be 는 ALTER TABLE ... ADD COLUMN 이라 이 둘이 맨 끝에
+  --    붙는데, SchemaParityTest 가 **컬럼 순서**를 본다. created_at 뒤가 그 자리다.
+  issuance_engine_version varchar(10) NULL DEFAULT 'V1'
+      COMMENT '회차별 발급 엔진. NULL은 하위 호환을 위해 V1로 판정',
+  -- ⚠️ tinyint(1) 이다. cy-be 마이그레이션은 boolean 으로 적었지만 MySQL 이 그것을
+  --    tinyint(1) 로 저장하고, 대조는 INFORMATION_SCHEMA(저장된 쪽)를 읽는다.
+  issuance_engine_locked  tinyint(1)  NOT NULL DEFAULT 0
+      COMMENT '인스턴스가 회차 정의를 읽은 뒤 발급 엔진 변경 금지',
   PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;
 
