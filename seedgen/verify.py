@@ -215,6 +215,48 @@ INVARIANTS = [
      "('ISSUED','USED','CANCELLED','EXPIRED')"),
 ]
 
+# ─────────────────────────────────────────────────────────────────────────────
+# cy-be 도메인 규칙. 위 INVARIANTS 와 성격이 다르다 — 저쪽은 **데이터 내부 정합**
+# (고아·중복·합계)이고, 이쪽은 **앱이 이 데이터를 받아들이는가** 다.
+#
+# 이 축이 없어서 2026-08-30 에 세 종류가 한꺼번에 드러났다. 셋 다 시드가 몇 달째
+# 만들어 내던 값인데 아무도 이 방향으로 안 봤다:
+#   DATA_GRANT      도메인 enum 에 없는 정책 → 쿠폰 API 가 읽는 순간 터짐
+#   자정 넘는 진행   CouponTemplate.validateSchedule → /brand-days 전체가 500
+#   겹치는 회차      existsOverlappingSchedule → 앱이 절대 만들지 않을 상태
+#
+# 앞의 둘은 500 을 냈지만 셋째는 **조용했다.** 그래서 "터지는지" 로만 보면 안 되고
+# 규칙을 하나씩 적어 세야 한다. 규칙이 바뀌면 여기도 함께 고친다.
+DOMAIN_RULE_INVARIANTS = [
+    # CouponTemplate.validateSchedule — LocalTime 이 자정에서 되감기므로
+    # start + duration 이 24:00 에 **닿기만 해도** isAfter 가 거짓이 되어 거절이다.
+    ("자정을 넘는 진행 시간(템플릿)",
+     "SELECT COUNT(*) FROM coupon_templates "
+     "WHERE HOUR(start_time) + duration_hours >= 24"),
+    # core.coupontemplate.domain.CouponPolicyType 은 둘뿐이다. 관리자 쪽 enum 에만
+    # 남아 있던 DATA_GRANT 를 CY-589 가 DB 제약까지 걷었다.
+    ("지원하지 않는 정책(템플릿)",
+     "SELECT COUNT(*) FROM coupon_templates "
+     "WHERE policy_type NOT IN ('PERCENT_CAPPED','FIXED_AMOUNT')"),
+    ("지원하지 않는 정책(회차)",
+     "SELECT COUNT(*) FROM coupons "
+     "WHERE policy_type NOT IN ('PERCENT_CAPPED','FIXED_AMOUNT')"),
+    # existsOverlappingSchedule — 브랜드데이는 한 번에 하나만 돈다.
+    # 경계가 같은 것(앞이 닫는 시각에 뒤가 열림)은 겹침이 아니다.
+    ("시간이 겹치는 회차",
+     "SELECT COUNT(*) FROM coupons a JOIN coupons b "
+     "ON a.id < b.id AND a.open_at < b.close_at AND a.close_at > b.open_at "
+     "WHERE a.status IN ('SCHEDULED','OPEN') AND b.status IN ('SCHEDULED','OPEN')"),
+    # CouponRoundCreationService 가 먼저 보는 조건.
+    ("같은 템플릿·오픈시각 회차 중복",
+     "SELECT COALESCE(SUM(c-1),0) FROM (SELECT COUNT(*) c FROM coupons "
+     "GROUP BY template_id, open_at HAVING COUNT(*) > 1) t"),
+    # CouponRound.validate — 창은 열린 뒤에 닫혀야 한다.
+    ("close_at 이 open_at 보다 앞",
+     "SELECT COUNT(*) FROM coupons WHERE close_at <= open_at"),
+]
+
+
 CLEAN_ONLY_INVARIANTS = [
     ("issued+used = active_count",
      "SELECT COUNT(*) FROM coupon_stats cs JOIN coupon_stocks st "
@@ -255,7 +297,9 @@ def run_rules(db, as_of: str, dataset: str, chunk: int = 200_000,
 
 def check_invariants(db, dataset: str) -> list[str]:
     problems = []
-    checks = list(INVARIANTS)
+    # 도메인 규칙은 오염셋에서도 지켜야 한다 — 오염은 **정합성**을 깨뜨리는 것이지
+    # 앱이 못 읽는 데이터를 만드는 것이 아니다. 검증 배치가 읽어야 오염이 뜻을 갖는다.
+    checks = list(INVARIANTS) + list(DOMAIN_RULE_INVARIANTS)
     if dataset == "clean":
         checks += CLEAN_ONLY_INVARIANTS
     for label, sql in checks:
