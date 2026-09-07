@@ -77,6 +77,7 @@ TABLES: dict[str, list[tuple[str, str]]] = {
         ("verdict", "str"),
         ("stats_status", "str"), ("finding_count", "int"),
         ("findings_checksum", "str"), ("dataset_fingerprint", "str"),
+        ("examined_issuance_count", "int"), ("examined_history_count", "int"),
         ("started_at", "dt6"), ("finished_at", "dt6"), ("origin", "str"),
     ],
     "coupon_stats": [

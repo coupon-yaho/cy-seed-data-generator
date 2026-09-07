@@ -123,9 +123,13 @@ def write_verification_runs(
         #   CORRUPT FAIL/800 이 상시 발화해 알림이 영원히 안 꺼진다
         # cy-be 의 rejectExistingRun 이 같은 함정을 막고 있었는데 되읽기 경로에는
         # 그 방어가 없었다. 컬럼으로 세운다.
+        # examined_* 는 "그 실행이 무엇을 몇 건 봤나" 다 — PASS 0건의 분모다.
+        # 지문이 쓰는 바로 그 수라 새로 세지 않는다. 이 값이 없으면 리포트에서
+        # "다 보고 못 찾았다" 와 "거의 아무것도 안 봤다" 가 같은 모양이 된다.
         w.write(
             run_id, as_of, from_ts, scope, dataset, seed_run_id, attempt, verdict,
             stats_status, count, checksum if count else findings_checksum([]), fp,
+            totals.issuances, totals.histories,
             started, started + dt.timedelta(minutes=4 + run_id), "SEED",
         )
         if stats_status == "COMPLETE":
