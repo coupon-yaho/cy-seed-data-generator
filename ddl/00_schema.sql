@@ -167,6 +167,8 @@ CREATE TABLE verification_runs (
   finding_count        int         NOT NULL DEFAULT 0,
   findings_checksum    char(64),
   dataset_fingerprint  char(64),
+  examined_issuance_count bigint    COMMENT 'as_of 시점의 발급건 수 — PASS 0건의 분모다',
+  examined_history_count  bigint    COMMENT 'as_of 까지의 이력 행 수. 리플레이가 보는 범위',
   started_at           datetime(6) NOT NULL,
   finished_at          datetime(6),
   origin               varchar(6)  NOT NULL DEFAULT 'BATCH' COMMENT 'SEED / BATCH — 시드가 심은 기준 행인가, 배치가 만든 실행인가',
